@@ -1,0 +1,69 @@
+# Operating System
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Python
+*.py[cod]
+*$py.class
+*.pyo
+*.pyd
+__pycache__/
+*/__pycache__/
+*.so
+.Python
+env/
+venv/
+.venv/
+ENV/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Databases & local storage
+*.db
+*.sqlite
+*.sqlite3
+echo.db
+backend/echo.db
+
+# Frontend / Node
+node_modules/
+dist/
+frontend/dist/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# Environment & Sensitive files (NEVER commit secrets!)
+.env
+.env.*
+.env.local
+.env.*.local
+!.env.example
+
+# IDEs & Editors
+.vscode/
+.idea/
+*.sublime-workspace
+*.sublime-project
+*.swp
+*.swo
+*~
