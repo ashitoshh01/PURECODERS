@@ -1,13 +1,15 @@
-# Echo — Intelligent Project Knowledge Continuity & Handover System
+# Echo — Knowledge-Risk Engine for Seamless Team Handovers
 
-> **We Code Coders · Hackathon Submission**  
-> Complete project with deterministic knowledge-risk engine, automated repository ingestion, evidence-grounded exit interviews, and a **complete, production-grade authentication and role-based access system**.
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.115+-009688?style=flat&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com)
+[![React](https://img.shields.io/badge/React-19-61DAFB?style=flat&logo=react&logoColor=black)](https://react.dev)
+[![Vite](https://img.shields.io/badge/Vite-8-646CFF?style=flat&logo=vite&logoColor=white)](https://vitejs.dev)
+[![TailwindCSS](https://img.shields.io/badge/Tailwind_CSS-v4-38B2AC?style=flat&logo=tailwind-css&logoColor=white)](https://tailwindcss.com)
+[![SQLite](https://img.shields.io/badge/SQLite-Persistent_DB-003B57?style=flat&logo=sqlite&logoColor=white)](https://www.sqlite.org)
+[![ASI:One](https://img.shields.io/badge/ASI:One-AI_Engine-8A2BE2?style=flat)](https://asi1.ai)
 
----
+> **When a key engineer resigns, most teams summarize what they wrote down. Echo discovers what only they know.**  
+> Echo continuously scans codebases, commit histories, and ownership graphs to compute deterministic knowledge-risk scores, generate evidence-backed exit interviews, create customized successor packages, and provide a grounded AI copilot.
 
-## 🔐 Complete Authentication & Access Control System
-
-ECHO now features a comprehensive, fully functional authentication system built on the existing FastAPI backend and SQLite persistence layer, with an executive dark navy (`#071126`) and teal (`#18C6B0`) interface.
 
 ### Key Authentication Features
 - **Real Backend Authentication:** Powered by FastAPI, SQLite persistence, and secure `bcrypt` salted password hashing. Passwords are never stored in plaintext.
@@ -151,4 +153,11 @@ PURECODERS/
 - `GET /api/handover`: Personalized successor package (onboarding path, landmines, open loops, who-to-ask).
 - `POST /api/ask`: Retrieval-first Q&A with citations and honesty fallback ("Unknown" + suggested contact).
 - `POST /api/reset`: Reset interview answers and decision logs for a clean demo run.
+
+## 🔒 Security & Privacy
+
+- **No Secrets in Version Control:** `.env` and `*.db` are ignored by `.gitignore`.
+- **Honesty Guardrails:** The copilot strictly refuses to invent credentials, secrets, or undocumented data.
+- **Local-First SQLite:** Stores knowledge graphs, artifacts, and decisions locally without mandatory cloud vendor lock-in.
+
 
