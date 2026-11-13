@@ -18,6 +18,9 @@ export default function AppShell({
   leaver,
   successor,
   manager,
+  currentUser,
+  onLogout,
+  onSwitchRole,
   children,
 }) {
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -44,6 +47,9 @@ export default function AppShell({
         leaver={leaver}
         successor={successor}
         manager={manager}
+        currentUser={currentUser}
+        onLogout={onLogout}
+        onSwitchRole={onSwitchRole}
       />
 
       {/* Main Content Area (offset by sidebar on desktop) */}
@@ -61,6 +67,9 @@ export default function AppShell({
           onOpenConnectModal={() => setConnectModalOpen(true)}
           successor={successor}
           leaver={leaver}
+          currentUser={currentUser}
+          onLogout={onLogout}
+          onSwitchRole={onSwitchRole}
         />
 
         <main className="flex-1 p-4 sm:p-6 lg:p-8 max-w-7xl w-full mx-auto">

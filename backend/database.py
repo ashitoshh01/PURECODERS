@@ -244,6 +244,46 @@ def init_db():
             files_changed_count INTEGER DEFAULT 0,
             FOREIGN KEY(project_id) REFERENCES projects(id) ON DELETE CASCADE
         );
+
+        CREATE TABLE IF NOT EXISTS users (
+            id TEXT PRIMARY KEY,
+            full_name TEXT NOT NULL,
+            email TEXT UNIQUE NOT NULL,
+            password_hash TEXT NOT NULL,
+            role TEXT NOT NULL DEFAULT 'incoming_contributor',
+            is_active INTEGER DEFAULT 1,
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL
+        );
+
+        CREATE TABLE IF NOT EXISTS user_sessions (
+            token TEXT PRIMARY KEY,
+            user_id TEXT NOT NULL,
+            expires_at TEXT NOT NULL,
+            created_at TEXT NOT NULL,
+            FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+        );
+
+        CREATE TABLE IF NOT EXISTS password_reset_tokens (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id TEXT NOT NULL,
+            token TEXT UNIQUE NOT NULL,
+            expires_at TEXT NOT NULL,
+            used INTEGER DEFAULT 0,
+            created_at TEXT NOT NULL,
+            FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+        );
+
+        CREATE TABLE IF NOT EXISTS workspace_memberships (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id TEXT NOT NULL,
+            project_id TEXT NOT NULL,
+            role TEXT NOT NULL,
+            joined_at TEXT NOT NULL,
+            FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE,
+            FOREIGN KEY(project_id) REFERENCES projects(id) ON DELETE CASCADE,
+            UNIQUE(user_id, project_id)
+        );
         """)
 
         # Migration: ensure newly added columns exist in older SQLite databases
@@ -280,11 +320,12 @@ def get_active_project():
     conn.close()
     return dict(row) if row else None
 
-def reset_database(clear_credentials: bool = False):
+def reset_database(clear_credentials: bool = False, clear_users: bool = False):
     """
-    Safely and transactionally deletes all application data in strict dependency order,
+    Safely and transactionally deletes application data in strict dependency order,
     resets auto-increment counters, and verifies referential integrity.
     Preserves database schema and table definitions.
+    By default preserves registered user accounts and sessions unless clear_users=True.
     """
     conn = get_db()
     cleared_tables = [
@@ -308,6 +349,8 @@ def reset_database(clear_credentials: bool = False):
     ]
     if clear_credentials:
         cleared_tables.append("github_credentials")
+    if clear_users:
+        cleared_tables = ["password_reset_tokens", "user_sessions", "workspace_memberships", "users"] + cleared_tables
 
     try:
         with conn:

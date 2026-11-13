@@ -17,7 +17,8 @@ import {
   X,
   PlusCircle,
   GitBranch,
-  ArrowRightLeft
+  ArrowRightLeft,
+  LogOut
 } from 'lucide-react';
 
 export default function Sidebar({
@@ -36,6 +37,9 @@ export default function Sidebar({
   leaver,
   successor,
   manager,
+  currentUser,
+  onLogout,
+  onSwitchRole,
 }) {
   const isLiveMode = activeProject?.mode === 'live';
 
@@ -279,6 +283,35 @@ export default function Sidebar({
             </div>
             <ExternalLink className="w-3 h-3 text-slate-300" />
           </button>
+
+          {/* Current User Session Bar */}
+          {currentUser && (
+            <div className="pt-2 mt-2 border-t border-slate-100 flex items-center justify-between">
+              <div className="flex items-center gap-2 truncate">
+                <div className="w-6 h-6 rounded-full bg-slate-900 text-white flex items-center justify-center text-[10px] font-bold uppercase shrink-0">
+                  {currentUser.full_name ? currentUser.full_name.charAt(0) : 'U'}
+                </div>
+                <div className="truncate">
+                  <div className="text-xs font-semibold text-slate-800 truncate leading-tight">
+                    {currentUser.full_name}
+                  </div>
+                  <div className="text-[10px] text-slate-400 truncate leading-tight">
+                    {currentUser.role_display || currentUser.role}
+                  </div>
+                </div>
+              </div>
+              {onLogout && (
+                <button
+                  type="button"
+                  onClick={onLogout}
+                  className="p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-md transition cursor-pointer"
+                  title="Sign out of ECHO"
+                >
+                  <LogOut className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </div>
+          )}
         </div>
       </aside>
     </>

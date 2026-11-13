@@ -10,7 +10,7 @@ import re
 from datetime import datetime, timezone
 from typing import Optional, List, Dict, Any
 
-from fastapi import FastAPI, HTTPException, Query, Body, BackgroundTasks, status
+from fastapi import FastAPI, HTTPException, Query, Body, BackgroundTasks, status, Request, Response, Header, Cookie, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
@@ -32,6 +32,7 @@ from services.asi_service import (
     query_asi1,
     update_asi_env,
 )
+from services import auth_service
 
 app = FastAPI(title="Echo — Knowledge-Risk Engine", version="0.3.0")
 
@@ -83,6 +84,7 @@ app.add_middleware(
 @app.on_event("startup")
 def startup_event():
     init_db()
+    auth_service.seed_default_users()
     conn = get_db()
     try:
         row = conn.execute("SELECT COUNT(*) as c FROM projects").fetchone()
@@ -97,6 +99,27 @@ def startup_event():
 # ----------------------------------------------------------------------------
 # REQUEST MODELS
 # ----------------------------------------------------------------------------
+class UserRegisterIn(BaseModel):
+    full_name: str = Field(..., min_length=2, max_length=100, description="Full name of the user")
+    email: str = Field(..., description="Valid corporate or personal email address")
+    password: str = Field(..., min_length=8, description="Secure password (minimum 8 characters)")
+    role: Optional[str] = Field("incoming_contributor", description="User role in the system")
+
+class UserLoginIn(BaseModel):
+    email: str = Field(..., description="Registered email address")
+    password: str = Field(..., description="Account password")
+    remember_me: Optional[bool] = Field(False, description="Extend session duration")
+
+class ForgotPasswordIn(BaseModel):
+    email: str = Field(..., description="Registered email address for reset instructions")
+
+class ResetPasswordIn(BaseModel):
+    token: str = Field(..., description="Secure time-limited password reset token")
+    new_password: str = Field(..., min_length=8, description="New password (minimum 8 characters)")
+
+class SwitchRoleIn(BaseModel):
+    role: str = Field(..., description="Target role identifier")
+
 class ProjectSelectIn(BaseModel):
     project_id: str
 
@@ -132,10 +155,264 @@ class AiConfigIn(BaseModel):
     api_key: str
     model: Optional[str] = "asi1"
 
-
 class ApproveHandoverIn(BaseModel):
     approved_by: Optional[str] = "Neha (Engineering Manager)"
     project_id: Optional[str] = None
+
+# ----------------------------------------------------------------------------
+# AUTHENTICATION DEPENDENCIES
+# ----------------------------------------------------------------------------
+async def get_current_user_optional(
+    request: Request,
+    authorization: Optional[str] = Header(None),
+    echo_token: Optional[str] = Cookie(None)
+) -> Optional[Dict[str, Any]]:
+    """
+    Extracts and validates user session from Authorization header (Bearer token)
+    or HTTP-only session cookie (echo_token).
+    Returns user dictionary if authenticated, or None if unauthenticated.
+    """
+    token = None
+    if authorization and authorization.lower().startswith("bearer "):
+        token = authorization[7:].strip()
+    elif echo_token:
+        token = echo_token.strip()
+
+    if not token:
+        return None
+
+    return auth_service.validate_session(token)
+
+async def get_current_user(
+    user: Optional[Dict[str, Any]] = Depends(get_current_user_optional)
+) -> Dict[str, Any]:
+    """
+    Dependency that enforces authentication. Raises 401 if unauthenticated.
+    """
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Authentication required. Please log in to access this workspace.",
+            headers={"WWW-Authenticate": "Bearer"}
+        )
+    return user
+
+def require_roles(allowed_roles: List[str]):
+    """
+    Dependency generator for role-based access control.
+    """
+    async def role_checker(user: Dict[str, Any] = Depends(get_current_user)) -> Dict[str, Any]:
+        if user["role"] not in allowed_roles:
+            role_names = [auth_service.VALID_ROLES.get(r, r) for r in allowed_roles]
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"Access denied. This action requires one of the following roles: {', '.join(role_names)}."
+            )
+        return user
+    return role_checker
+
+# ----------------------------------------------------------------------------
+# AUTHENTICATION ENDPOINTS
+# ----------------------------------------------------------------------------
+@app.post("/api/auth/register", status_code=status.HTTP_201_CREATED)
+def register_endpoint(payload: UserRegisterIn, response: Response):
+    """
+    Registers a new user account with hashed password and role assignment.
+    Creates active session and sets secure HTTP-only cookie.
+    """
+    try:
+        user = auth_service.create_user(
+            full_name=payload.full_name,
+            email=payload.email,
+            password=payload.password,
+            role=payload.role or "incoming_contributor"
+        )
+
+        from datetime import datetime, timezone, timedelta
+        expires_at = datetime.now(timezone.utc) + timedelta(days=auth_service.JWT_EXPIRES_DAYS)
+        token = auth_service.create_access_token(user["id"], user["email"], user["role"])
+        auth_service.create_session(user["id"], token, expires_at)
+
+        response.set_cookie(
+            key="echo_token",
+            value=token,
+            httponly=True,
+            max_age=auth_service.JWT_EXPIRES_DAYS * 86400,
+            samesite="lax",
+            secure=False
+        )
+
+        return {
+            "status": "success",
+            "token": token,
+            "token_type": "bearer",
+            "user": user,
+            "message": "Account created successfully"
+        }
+    except ValueError as e:
+        msg = str(e)
+        if "already exists" in msg:
+            raise HTTPException(status.HTTP_409_CONFLICT, msg)
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, msg)
+    except Exception as e:
+        raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, f"Registration failed: {str(e)}")
+
+@app.post("/api/auth/login")
+def login_endpoint(payload: UserLoginIn, response: Response):
+    """
+    Authenticates a user with email and password using bcrypt.
+    Creates a new authenticated session in SQLite and returns JWT + user profile.
+    """
+    clean_email = payload.email.strip().lower()
+    user_record = auth_service.get_user_by_email(clean_email)
+    if not user_record or not user_record.get("is_active"):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid email or password. Please check your credentials."
+        )
+
+    if not auth_service.verify_password(payload.password, user_record["password_hash"]):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid email or password. Please check your credentials."
+        )
+
+    days = auth_service.JWT_REMEMBER_DAYS if payload.remember_me else auth_service.JWT_EXPIRES_DAYS
+    from datetime import datetime, timezone, timedelta
+    expires_at = datetime.now(timezone.utc) + timedelta(days=days)
+    token = auth_service.create_access_token(
+        user_record["id"],
+        user_record["email"],
+        user_record["role"],
+        expires_delta=timedelta(days=days)
+    )
+    auth_service.create_session(user_record["id"], token, expires_at)
+
+    response.set_cookie(
+        key="echo_token",
+        value=token,
+        httponly=True,
+        max_age=days * 86400,
+        samesite="lax",
+        secure=False
+    )
+
+    clean_user = {
+        "id": user_record["id"],
+        "full_name": user_record["full_name"],
+        "email": user_record["email"],
+        "role": user_record["role"],
+        "role_display": auth_service.VALID_ROLES.get(user_record["role"], user_record["role"]),
+        "is_active": user_record["is_active"],
+        "created_at": user_record["created_at"],
+        "updated_at": user_record["updated_at"]
+    }
+
+    return {
+        "status": "success",
+        "token": token,
+        "token_type": "bearer",
+        "user": clean_user,
+        "message": "Login successful"
+    }
+
+@app.post("/api/auth/logout")
+def logout_endpoint(
+    response: Response,
+    authorization: Optional[str] = Header(None),
+    echo_token: Optional[str] = Cookie(None)
+):
+    """
+    Logs out the current user, deletes session from database, and clears cookies.
+    """
+    token = None
+    if authorization and authorization.lower().startswith("bearer "):
+        token = authorization[7:].strip()
+    elif echo_token:
+        token = echo_token.strip()
+
+    if token:
+        auth_service.delete_session(token)
+
+    response.delete_cookie(key="echo_token")
+    return {"status": "success", "message": "Successfully logged out"}
+
+@app.get("/api/auth/me")
+def get_current_user_endpoint(user: Dict[str, Any] = Depends(get_current_user)):
+    """
+    Returns current authenticated user session data and role permissions.
+    """
+    return {
+        "authenticated": True,
+        "user": user
+    }
+
+@app.post("/api/auth/forgot-password")
+def forgot_password_endpoint(payload: ForgotPasswordIn):
+    """
+    Generates a secure time-limited reset token for password recovery.
+    Does not leak email existence. Provides dev reset link when SMTP is unconfigured.
+    """
+    clean_email = payload.email.strip().lower()
+    reset_data = auth_service.create_password_reset_token(clean_email)
+
+    resp = {
+        "status": "success",
+        "message": "If this email address is registered, password reset instructions have been generated."
+    }
+
+    if reset_data:
+        resp["dev_mode"] = True
+        resp["dev_reset_token"] = reset_data["token"]
+        resp["dev_reset_url"] = f"/reset-password?token={reset_data['token']}"
+        resp["dev_notice"] = "SMTP is not configured. Use the provided development link to complete the password reset."
+
+    return resp
+
+@app.post("/api/auth/reset-password")
+def reset_password_endpoint(payload: ResetPasswordIn):
+    """
+    Resets user password using a verified time-limited reset token.
+    """
+    try:
+        auth_service.reset_password_with_token(payload.token.strip(), payload.new_password)
+        return {
+            "status": "success",
+            "message": "Password reset successfully. You can now log in with your new password."
+        }
+    except ValueError as e:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, str(e))
+    except Exception as e:
+        raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, f"Reset failed: {str(e)}")
+
+@app.get("/api/auth/demo-users")
+def get_demo_users_endpoint():
+    """
+    Returns pre-configured benchmark demo accounts for rapid testing across all 4 roles.
+    """
+    return {
+        "users": [
+            {
+                "full_name": acc["full_name"],
+                "email": acc["email"],
+                "password": acc["password"],
+                "role": acc["role"],
+                "role_display": auth_service.VALID_ROLES.get(acc["role"], acc["role"])
+            }
+            for acc in auth_service.DEFAULT_DEMO_ACCOUNTS
+        ]
+    }
+
+@app.post("/api/auth/switch-role")
+def switch_role_endpoint(payload: SwitchRoleIn, user: Dict[str, Any] = Depends(get_current_user)):
+    """
+    Switches role of currently authenticated user (enables testing different perspectives).
+    """
+    try:
+        updated = auth_service.update_user_role(user["id"], payload.role)
+        return {"status": "success", "user": updated}
+    except ValueError as e:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, str(e))
 
 # ----------------------------------------------------------------------------
 # CORE / HEALTH & PROJECTS
@@ -856,6 +1133,16 @@ if os.path.exists(dist_assets):
 
 @app.get("/")
 def serve_frontend_root():
+    if os.path.exists(os.path.join(dist_dir, "index.html")):
+        return FileResponse(os.path.join(dist_dir, "index.html"))
+    if os.path.exists(os.path.join(frontend_dir, "index.html")):
+        return FileResponse(os.path.join(frontend_dir, "index.html"))
+    return {"service": "Echo Knowledge-Risk Engine", "docs": "/docs"}
+
+@app.get("/{full_path:path}")
+def serve_frontend_spa_fallback(full_path: str):
+    if full_path.startswith("api/") or full_path.startswith("assets/") or full_path in ["health", "docs", "openapi.json", "redoc"]:
+        raise HTTPException(status_code=404, detail="Resource not found")
     if os.path.exists(os.path.join(dist_dir, "index.html")):
         return FileResponse(os.path.join(dist_dir, "index.html"))
     if os.path.exists(os.path.join(frontend_dir, "index.html")):

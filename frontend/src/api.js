@@ -38,8 +38,19 @@ export async function api(path, options = {}) {
     url = `${cleanBase}${cleanPath}`;
   }
 
+  // Retrieve auth token from storage if present
+  let authToken = null;
+  if (typeof window !== 'undefined') {
+    try {
+      authToken = localStorage.getItem('echo_token');
+    } catch {
+      // storage unavailable
+    }
+  }
+
   const headers = {
     'Content-Type': 'application/json',
+    ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
     ...(options.headers || {}),
   };
 
@@ -51,6 +62,7 @@ export async function api(path, options = {}) {
   let response;
   try {
     response = await fetch(url, {
+      credentials: 'include', // Transmit HTTP-only cookies
       ...options,
       headers,
     });
@@ -164,6 +176,31 @@ export const echoApi = {
 
   // Reset Demo
   resetDemoState: () => api('/api/reset', { method: 'POST' }),
+
+  // Authentication & Session
+  register: (payload) => api('/api/auth/register', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  }),
+  login: (email, password, rememberMe = false) => api('/api/auth/login', {
+    method: 'POST',
+    body: JSON.stringify({ email, password, remember_me: rememberMe }),
+  }),
+  logout: () => api('/api/auth/logout', { method: 'POST' }),
+  getCurrentUser: () => api('/api/auth/me'),
+  forgotPassword: (email) => api('/api/auth/forgot-password', {
+    method: 'POST',
+    body: JSON.stringify({ email }),
+  }),
+  resetPassword: (token, newPassword) => api('/api/auth/reset-password', {
+    method: 'POST',
+    body: JSON.stringify({ token, new_password: newPassword }),
+  }),
+  getDemoUsers: () => api('/api/auth/demo-users'),
+  switchRole: (role) => api('/api/auth/switch-role', {
+    method: 'POST',
+    body: JSON.stringify({ role }),
+  }),
 };
 
 export function getRiskColor(pct) {
