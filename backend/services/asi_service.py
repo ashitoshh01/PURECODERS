@@ -400,7 +400,9 @@ CRITICAL INSTRUCTIONS:
 2. Specifically cite file paths, commit authors, commit messages, interview quotes, or architectural decisions whenever relevant.
 3. If an answer cannot be determined from the evidence or codebase context (e.g., unknown third-party secrets, undocumented passwords, or out-of-scope topics), be honest, state that no evidence exists, and refer the user to the designated domain expert from 'Who to Ask'.
 4. Do not invent passwords or credentials.
-5. Keep your tone professional, concise, and helpful to an onboarding engineer."""
+5. KEEP RESPONSES SHORT AND CONCISE (maximum 2–3 short sentences or 2–3 brief bullet points, strictly under 100 words total).
+6. Avoid conversational filler, preambles, or unprompted suggestions. Answer directly.
+7. For greetings, confirmations, or acknowledgments (e.g., "ok", "got it", "hi", "thanks"), reply with only one short, helpful sentence without listing or summarizing the project context."""
 
     messages = [{"role": "system", "content": system_prompt}]
 
@@ -418,7 +420,7 @@ CRITICAL INSTRUCTIONS:
         "model": model,
         "messages": messages,
         "temperature": 0.25,
-        "max_tokens": 1200,
+        "max_tokens": 350,
         "stream": False,
     }
 
