@@ -67,7 +67,10 @@ def get_allowed_origins() -> List[str]:
     return origins
 
 allowed_origins = get_allowed_origins()
-cors_origin_regex = os.getenv("CORS_ORIGIN_REGEX", r"^https://.*\.vercel\.app$")
+cors_origin_regex = os.getenv(
+    "CORS_ORIGIN_REGEX",
+    r"^(https?://(?:localhost|127\.0\.0\.1)(?::\d+)?|https://.*\.vercel\.app|https://.*\.up\.railway\.app|https://.*\.onrender\.com)$",
+)
 
 app.add_middleware(
     CORSMiddleware,

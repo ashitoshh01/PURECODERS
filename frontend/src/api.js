@@ -14,16 +14,9 @@ export function resolveApiBase() {
     return envUrl.trim().replace(/\/+$/, '');
   }
 
-  if (typeof window !== 'undefined') {
-    const port = window.location.port;
-    if (port === '8000' || port === '3000' || port === '5173') {
-      return ''; // Vite proxy forwards /api to backend, or direct static serving
-    }
-    const hostname = window.location.hostname || 'localhost';
-    return `http://${hostname}:8000`;
-  }
-
-  return 'http://localhost:8000';
+  // Same-origin relative URLs work across dev server (Vite proxy forwards /api to 8000)
+  // and production single-container deployments (FastAPI serves API and frontend on same host)
+  return '';
 }
 
 export const API_BASE = resolveApiBase();
