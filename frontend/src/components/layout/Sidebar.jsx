@@ -1,16 +1,16 @@
 import React from 'react';
+import echoIcon from '../../assets/echo-icon.png';
 import {
   Compass,
   Mic,
   Package,
+  Bot,
+  Menu,
   FolderGit2,
   Settings,
-  HelpCircle,
   ChevronRight,
-  ExternalLink,
   Sparkles,
   RotateCcw,
-  X,
 } from 'lucide-react';
 
 export default function Sidebar({
@@ -18,8 +18,9 @@ export default function Sidebar({
   onSelectTab,
   mobileOpen,
   onCloseMobile,
+  desktopSidebarOpen = true,
+  onToggleSidebar,
   onOpenSettings,
-  onOpenHelp,
   onResetDemo,
   resetting,
   projects = [],
@@ -53,6 +54,13 @@ export default function Sidebar({
       badge: null,
       description: 'Personalized successor plan',
     },
+    {
+      id: 'ask',
+      label: 'AI Assistant',
+      icon: Bot,
+      badge: 'AI',
+      description: 'Grounded successor copilot',
+    },
   ];
 
   return (
@@ -67,20 +75,24 @@ export default function Sidebar({
       )}
 
       <aside
-        className={`fixed top-0 bottom-0 left-0 z-50 w-64 bg-white border-r border-slate-200/90 flex flex-col transition-transform duration-200 ease-in-out lg:translate-x-0 ${
-          mobileOpen ? 'translate-x-0 shadow-xl' : '-translate-x-full'
-        }`}
+        className={`fixed top-0 bottom-0 left-0 z-50 w-64 bg-white border-r border-slate-200/90 flex flex-col transition-transform duration-200 ease-in-out ${
+          desktopSidebarOpen ? 'lg:translate-x-0' : 'lg:-translate-x-full'
+        } ${mobileOpen ? 'translate-x-0 shadow-xl' : '-translate-x-full'}`}
         aria-label="Main navigation"
       >
         {/* Brand / Logo Header */}
-        <div className="h-16 px-5 border-b border-slate-200/90 flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-xl bg-[#071126] border border-slate-700/50 flex items-center justify-center text-[#18C6B0] shadow-sm">
-              <Sparkles className="w-4 h-4 fill-current" />
+        <div className="h-16 px-4 border-b border-slate-200/90 flex items-center justify-between">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div className="w-8 h-8 rounded-lg bg-white border border-slate-200/80 p-0.5 flex items-center justify-center shrink-0 shadow-2xs">
+              <img
+                src={echoIcon}
+                alt="Echo Logo"
+                className="w-full h-full object-contain"
+              />
             </div>
-            <div>
+            <div className="min-w-0">
               <div className="flex items-center gap-1.5">
-                <span className="font-bold text-slate-900 tracking-tight text-base">Echo</span>
+                <span className="font-bold text-slate-900 tracking-tight text-base leading-none">Echo</span>
                 <span
                   className={`text-[10px] font-semibold px-1.5 py-0.2 rounded-md border ${
                     isLiveMode
@@ -91,18 +103,22 @@ export default function Sidebar({
                   {isLiveMode ? 'Live Git' : 'Benchmark'}
                 </span>
               </div>
-              <p className="text-[11px] text-slate-500 font-medium leading-none mt-0.5">
+              <p className="text-[11px] text-slate-500 font-medium leading-none mt-1 truncate">
                 Knowledge-Risk Engine
               </p>
             </div>
           </div>
-          {/* Mobile close button */}
+          {/* Hamburger toggle button */}
           <button
-            onClick={onCloseMobile}
-            className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 lg:hidden cursor-pointer"
-            aria-label="Close navigation sidebar"
+            onClick={() => {
+              if (onToggleSidebar) onToggleSidebar();
+              if (onCloseMobile) onCloseMobile();
+            }}
+            className="p-1.5 rounded-lg text-slate-500 hover:text-slate-800 hover:bg-slate-100 transition cursor-pointer"
+            aria-label="Toggle navigation sidebar"
+            title="Toggle sidebar"
           >
-            <X className="w-4 h-4" />
+            <Menu className="w-5 h-5" />
           </button>
         </div>
 
@@ -267,17 +283,6 @@ export default function Sidebar({
               <span>Engine &amp; Connectors</span>
             </div>
             <ChevronRight className="w-3 h-3 text-slate-300" />
-          </button>
-
-          <button
-            onClick={onOpenHelp}
-            className="w-full flex items-center justify-between px-3 py-1.5 rounded-lg text-xs text-slate-600 hover:text-slate-900 hover:bg-slate-50 transition cursor-pointer"
-          >
-            <div className="flex items-center gap-2">
-              <HelpCircle className="w-3.5 h-3.5 text-slate-400" />
-              <span>Demo Guide &amp; Rubric</span>
-            </div>
-            <ExternalLink className="w-3 h-3 text-slate-300" />
           </button>
         </div>
       </aside>

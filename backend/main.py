@@ -1143,6 +1143,9 @@ def serve_frontend_root():
 def serve_frontend_spa_fallback(full_path: str):
     if full_path.startswith("api/") or full_path.startswith("assets/") or full_path in ["health", "docs", "openapi.json", "redoc"]:
         raise HTTPException(status_code=404, detail="Resource not found")
+    direct_file = os.path.join(dist_dir, full_path)
+    if os.path.isfile(direct_file):
+        return FileResponse(direct_file)
     if os.path.exists(os.path.join(dist_dir, "index.html")):
         return FileResponse(os.path.join(dist_dir, "index.html"))
     if os.path.exists(os.path.join(frontend_dir, "index.html")):

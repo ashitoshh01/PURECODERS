@@ -305,17 +305,17 @@ export default function App() {
   // 1. Initial Session Verification Screen
   if (authChecking) {
     return (
-      <div className="min-h-screen bg-[#071126] text-slate-100 flex flex-col items-center justify-center p-4 selection:bg-[#18C6B0]/30 selection:text-white">
+      <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col items-center justify-center p-4 selection:bg-teal-100 selection:text-teal-900">
         <div className="flex flex-col items-center gap-4 animate-fadeIn">
-          <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-[#18C6B0] to-teal-400 flex items-center justify-center text-[#071126] shadow-xl shadow-[#18C6B0]/20 animate-pulse">
-            <Sparkles className="w-6 h-6 fill-current" />
+          <div className="w-12 h-12 rounded-2xl bg-white border border-slate-200/90 p-2 flex items-center justify-center shadow-xs">
+            <img src="/echo-icon.png" alt="Echo" className="w-full h-full object-contain" />
           </div>
           <div className="text-center">
-            <h2 className="text-lg font-bold text-white tracking-tight">ECHO</h2>
-            <p className="text-xs text-slate-400 mt-0.5">Verifying secure authentication session...</p>
+            <h2 className="text-base font-bold text-slate-900 tracking-tight">Echo</h2>
+            <p className="text-xs text-slate-500 mt-0.5">Verifying workspace session...</p>
           </div>
-          <div className="w-32 h-1 bg-[#0b162c] rounded-full overflow-hidden border border-[#1a345c] mt-2">
-            <div className="w-full h-full bg-[#18C6B0] animate-pulse" />
+          <div className="w-28 h-1 bg-slate-200 rounded-full overflow-hidden mt-1">
+            <div className="w-full h-full bg-slate-900 animate-pulse" />
           </div>
         </div>
       </div>

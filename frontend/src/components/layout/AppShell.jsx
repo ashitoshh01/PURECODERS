@@ -1,9 +1,8 @@
 import React, { useState } from 'react';
 import Sidebar from './Sidebar';
 import Topbar from './Topbar';
-import { SettingsModal, HelpModal } from './SettingsModal';
+import { SettingsModal } from './SettingsModal';
 import ConnectRepoModal from './ConnectRepoModal';
-import DraggableEchoBot from '../common/DraggableEchoBot';
 
 export default function AppShell({
   activeTab,
@@ -25,8 +24,8 @@ export default function AppShell({
   children,
 }) {
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [desktopSidebarOpen, setDesktopSidebarOpen] = useState(true);
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const [helpOpen, setHelpOpen] = useState(false);
   const [connectModalOpen, setConnectModalOpen] = useState(false);
 
   return (
@@ -37,8 +36,9 @@ export default function AppShell({
         onSelectTab={onSelectTab}
         mobileOpen={mobileOpen}
         onCloseMobile={() => setMobileOpen(false)}
+        desktopSidebarOpen={desktopSidebarOpen}
+        onToggleSidebar={() => setDesktopSidebarOpen((prev) => !prev)}
         onOpenSettings={() => setSettingsOpen(true)}
-        onOpenHelp={() => setHelpOpen(true)}
         onResetDemo={onResetDemo}
         resetting={resetting}
         projects={projects}
@@ -49,11 +49,19 @@ export default function AppShell({
         manager={manager}
       />
 
-      {/* Main Content Area (offset by sidebar on desktop) */}
-      <div className="lg:pl-64 flex flex-col flex-1 min-w-0">
+      {/* Main Content Area (offset by sidebar on desktop when open) */}
+      <div className={`${desktopSidebarOpen ? 'lg:pl-64' : 'lg:pl-0'} flex flex-col flex-1 min-w-0 transition-all duration-200 ease-in-out`}>
         <Topbar
           activeTab={activeTab}
-          onOpenMobile={() => setMobileOpen(true)}
+          onOpenMobile={() => {
+            setMobileOpen(true);
+            setDesktopSidebarOpen(true);
+          }}
+          desktopSidebarOpen={desktopSidebarOpen}
+          onToggleSidebar={() => {
+            setDesktopSidebarOpen((prev) => !prev);
+            setMobileOpen((prev) => !prev);
+          }}
           backendStatus={backendStatus}
           onRetryConnection={onRetryConnection}
           projects={projects}
@@ -80,16 +88,12 @@ export default function AppShell({
         </footer>
       </div>
 
-      {/* Draggable Free-Floating Robot Widget (Moveable Anywhere on Screen) */}
-      <DraggableEchoBot activeTab={activeTab} onSelectTab={onSelectTab} />
-
       {/* Modals */}
       <SettingsModal
         isOpen={settingsOpen}
         onClose={() => setSettingsOpen(false)}
         onScanLiveGit={onScanLiveGit}
       />
-      <HelpModal isOpen={helpOpen} onClose={() => setHelpOpen(false)} />
       <ConnectRepoModal
         isOpen={connectModalOpen}
         onClose={() => setConnectModalOpen(false)}

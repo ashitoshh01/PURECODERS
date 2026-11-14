@@ -1,0 +1,25 @@
+version: '3.8'
+
+services:
+  echo:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: echo-app
+    ports:
+      - "${PORT:-8000}:8000"
+    environment:
+      - PORT=8000
+      - DATABASE_PATH=/app/backend/data/echo.db
+      - JWT_SECRET=${JWT_SECRET:-echo-jwt-production-secret-key-2026}
+      - ASI1_API_KEY=${ASI1_API_KEY:-}
+      - ASI1_MODEL=${ASI1_MODEL:-asi1}
+      - ASI1_BASE_URL=${ASI1_BASE_URL:-https://api.asi1.ai/v1}
+      - GITHUB_TOKEN=${GITHUB_TOKEN:-}
+    volumes:
+      # Persistent SQLite volume
+      - echo_data:/app/backend/data
+    restart: unless-stopped
+
+volumes:
+  echo_data:
