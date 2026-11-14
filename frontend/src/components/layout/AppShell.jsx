@@ -3,6 +3,7 @@ import Sidebar from './Sidebar';
 import Topbar from './Topbar';
 import { SettingsModal, HelpModal } from './SettingsModal';
 import ConnectRepoModal from './ConnectRepoModal';
+import DraggableEchoBot from '../common/DraggableEchoBot';
 
 export default function AppShell({
   activeTab,
@@ -29,7 +30,7 @@ export default function AppShell({
   const [connectModalOpen, setConnectModalOpen] = useState(false);
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col font-sans text-slate-900 selection:bg-purple-100 selection:text-purple-900">
+    <div className="min-h-screen bg-slate-50 flex flex-col font-sans text-slate-900 selection:bg-[#18C6B0]/20 selection:text-slate-900">
       {/* Persistent Sidebar */}
       <Sidebar
         activeTab={activeTab}
@@ -43,13 +44,9 @@ export default function AppShell({
         projects={projects}
         activeProject={activeProject}
         onSelectProject={onSelectProject}
-        onOpenConnectModal={() => setConnectModalOpen(true)}
         leaver={leaver}
         successor={successor}
         manager={manager}
-        currentUser={currentUser}
-        onLogout={onLogout}
-        onSwitchRole={onSwitchRole}
       />
 
       {/* Main Content Area (offset by sidebar on desktop) */}
@@ -57,8 +54,6 @@ export default function AppShell({
         <Topbar
           activeTab={activeTab}
           onOpenMobile={() => setMobileOpen(true)}
-          onResetDemo={onResetDemo}
-          resetting={resetting}
           backendStatus={backendStatus}
           onRetryConnection={onRetryConnection}
           projects={projects}
@@ -72,18 +67,21 @@ export default function AppShell({
           onSwitchRole={onSwitchRole}
         />
 
-        <main className="flex-1 p-4 sm:p-6 lg:p-8 max-w-7xl w-full mx-auto">
+        <main className={`flex-1 w-full mx-auto ${activeTab === 'ask' ? 'p-3 sm:p-5 lg:p-6 max-w-7xl flex flex-col' : 'p-4 sm:p-6 lg:p-8 max-w-7xl'}`}>
           {children}
         </main>
 
-        <footer className="py-4 px-6 border-t border-slate-200/80 bg-white text-center text-xs text-slate-400 flex flex-col sm:flex-row items-center justify-between gap-2">
+        <footer className="py-4 px-6 border-t border-slate-200/90 bg-white text-center text-xs text-slate-500 flex flex-col sm:flex-row items-center justify-between gap-2">
           <span>Echo Knowledge-Risk Engine · SQLite Persistent Database</span>
           <span className="flex items-center gap-2">
-            <span className="w-1.5 h-1.5 rounded-full bg-purple-500" />
-            <span>Deterministic Knowledge Governance</span>
+            <span className="w-1.5 h-1.5 rounded-full bg-[#18C6B0]" />
+            <span className="font-medium text-slate-600">Deterministic Knowledge Governance</span>
           </span>
         </footer>
       </div>
+
+      {/* Draggable Free-Floating Robot Widget (Moveable Anywhere on Screen) */}
+      <DraggableEchoBot activeTab={activeTab} onSelectTab={onSelectTab} />
 
       {/* Modals */}
       <SettingsModal

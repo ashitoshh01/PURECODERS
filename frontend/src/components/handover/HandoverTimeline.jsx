@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Calendar, CheckCircle2, Circle, ArrowRight } from 'lucide-react';
+import { CheckCircle2, Circle, Clock, Check } from 'lucide-react';
 import { echoApi } from '../../api';
 
 export default function HandoverTimeline({ onboardingPath = [], onTaskToggled }) {
@@ -32,49 +32,55 @@ export default function HandoverTimeline({ onboardingPath = [], onTaskToggled })
     <div className="space-y-3">
       {onboardingPath.map((step, idx) => {
         const isDone = Boolean(step.is_completed);
+        const isToggling = togglingId === step.id;
+
         return (
           <div
             key={step.id || idx}
             onClick={() => handleToggle(step)}
             className={`p-4 rounded-xl border transition cursor-pointer flex items-start gap-3.5 ${
               isDone
-                ? 'bg-slate-50 border-slate-200/60 opacity-80'
-                : 'bg-white border-slate-200/80 hover:border-slate-300/80 shadow-xs'
+                ? 'bg-slate-50/80 border-slate-200/60 opacity-85'
+                : 'bg-white border-slate-200/90 hover:border-slate-300 shadow-2xs hover:shadow-xs'
             }`}
           >
-            {/* Checkbox button */}
+            {/* Custom Interactive Checkbox button */}
             <button
               type="button"
-              className="mt-0.5 text-slate-400 hover:text-purple-600 transition shrink-0"
+              disabled={isToggling}
+              className="mt-0.5 shrink-0 cursor-pointer focus:outline-none"
+              aria-label={isDone ? 'Mark task incomplete' : 'Mark task complete'}
             >
               {isDone ? (
-                <CheckCircle2 className="w-5 h-5 text-emerald-600" />
+                <div className="w-5 h-5 rounded-md bg-emerald-600 text-white flex items-center justify-center shadow-2xs">
+                  <Check className="w-3.5 h-3.5 stroke-[3]" />
+                </div>
               ) : (
-                <Circle className="w-5 h-5 text-slate-300" />
+                <div className="w-5 h-5 rounded-md border-2 border-slate-300 hover:border-[#18C6B0] transition bg-white" />
               )}
             </button>
 
-            {/* Content */}
+            {/* Content Body */}
             <div className="flex-1 min-w-0">
               <div className="flex flex-wrap items-center gap-2 mb-1">
-                <span className="font-mono text-xs font-semibold px-2 py-0.5 rounded bg-purple-50 text-purple-700 border border-purple-200">
+                <span className="font-mono text-xs font-bold px-2 py-0.5 rounded-md bg-teal-50 text-teal-800 border border-teal-200/80">
                   Week {step.week} · Days {step.days}
                 </span>
-                <span className={`text-xs text-slate-400 ${isDone ? 'line-through' : ''}`}>
+                <span className={`text-xs text-slate-400 font-medium ${isDone ? 'line-through' : ''}`}>
                   Phase {step.week === 1 ? 'Orientation & Shadowing' : 'Independent Execution'}
                 </span>
               </div>
 
               <div
-                className={`text-sm font-semibold transition ${
+                className={`text-sm font-bold transition leading-snug ${
                   isDone ? 'text-slate-500 line-through' : 'text-slate-900'
                 }`}
               >
                 {step.task}
               </div>
 
-              <div className="text-xs text-slate-500 mt-1 flex items-center gap-1.5">
-                <span className="font-medium text-slate-600">Rationale:</span>
+              <div className="text-xs text-slate-500 mt-1 flex items-start gap-1.5 leading-relaxed">
+                <span className="font-bold text-slate-700 shrink-0">Rationale:</span>
                 <span>{step.why}</span>
               </div>
             </div>

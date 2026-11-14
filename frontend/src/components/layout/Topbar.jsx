@@ -2,33 +2,16 @@ import React, { useState, useRef, useEffect } from 'react';
 import {
   Menu,
   ChevronRight,
-  GitBranch,
-  Search,
-  Bell,
-  CheckCircle2,
-  AlertCircle,
-  RotateCcw,
-  Sparkles,
-  User,
-  ShieldCheck,
   FolderGit2,
-  Layers,
   ArrowRightLeft,
   Plus,
   LogOut,
   ChevronDown,
-  Shield,
-  Briefcase,
-  Mic,
-  Package,
-  UserCheck
 } from 'lucide-react';
 
 export default function Topbar({
   activeTab,
   onOpenMobile,
-  onResetDemo,
-  resetting,
   backendStatus = 'online', // 'checking' | 'online' | 'offline'
   onRetryConnection,
   projects = [],
@@ -63,25 +46,25 @@ export default function Topbar({
       label: 'Project Lead',
       color: 'bg-teal-50 text-teal-800 border-teal-200',
       dot: 'bg-[#18C6B0]',
-      avatar: 'bg-[#18C6B0]/15 text-teal-800 border-teal-300'
+      avatar: 'bg-teal-50 text-teal-800 border-teal-300',
     },
     departing_contributor: {
       label: 'Departing Lead',
       color: 'bg-purple-50 text-purple-800 border-purple-200',
       dot: 'bg-purple-600',
-      avatar: 'bg-purple-100 text-purple-800 border-purple-300'
+      avatar: 'bg-purple-50 text-purple-800 border-purple-300',
     },
     incoming_contributor: {
       label: 'Successor',
       color: 'bg-emerald-50 text-emerald-800 border-emerald-200',
       dot: 'bg-emerald-500',
-      avatar: 'bg-emerald-100 text-emerald-800 border-emerald-300'
+      avatar: 'bg-emerald-50 text-emerald-800 border-emerald-300',
     },
     reviewer: {
       label: 'Reviewer',
       color: 'bg-amber-50 text-amber-800 border-amber-200',
       dot: 'bg-amber-500',
-      avatar: 'bg-amber-100 text-amber-800 border-amber-300'
+      avatar: 'bg-amber-50 text-amber-800 border-amber-300',
     },
   };
 
@@ -90,7 +73,7 @@ export default function Topbar({
   const pageTitles = {
     risk: 'Knowledge Risk Map',
     interview: `Exit Interview (${leaver?.name || 'Departing Lead'})`,
-    handover: `Successor Package (${successor?.name || 'Successor'})`,
+    handover: `Handover Package (${successor?.name || 'Successor'})`,
     ask: 'Ask Echo AI Assistant',
   };
 
@@ -109,48 +92,26 @@ export default function Topbar({
   };
 
   return (
-    <header className="h-16 bg-white/95 backdrop-blur-xs border-b border-slate-200/80 sticky top-0 z-30 px-4 sm:px-6 flex items-center justify-between">
-      {/* Left: Mobile hamburger + Mode Pill + Project Selector + Breadcrumbs */}
-      <div className="flex items-center gap-2 sm:gap-3">
+    <header className="h-16 bg-white/95 backdrop-blur-xs border-b border-slate-200/90 sticky top-0 z-30 px-4 sm:px-6 flex items-center justify-between">
+      {/* Left: Mobile hamburger + Vercel-style Project Switcher + Breadcrumb */}
+      <div className="flex items-center gap-2 sm:gap-3 min-w-0">
         <button
           onClick={onOpenMobile}
-          className="p-1.5 rounded-lg text-slate-500 hover:text-slate-800 hover:bg-slate-100 lg:hidden"
+          className="p-1.5 rounded-lg text-slate-500 hover:text-slate-800 hover:bg-slate-100 lg:hidden cursor-pointer"
           aria-label="Open navigation menu"
         >
           <Menu className="w-5 h-5" />
         </button>
 
-        {/* Dynamic Mode Switcher Pill */}
-        {projects.length > 1 && (
-          <button
-            onClick={handleToggleMode}
-            className={`hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold border transition shadow-2xs ${
-              isLiveMode
-                ? 'bg-emerald-50 text-emerald-800 border-emerald-200 hover:bg-emerald-100'
-                : 'bg-purple-50 text-purple-800 border-purple-200 hover:bg-purple-100'
-            }`}
-            title="Click to toggle between Live Git Ingestion and Benchmark Rubric Dataset"
-          >
-            <span
-              className={`w-1.5 h-1.5 rounded-full ${
-                isLiveMode ? 'bg-emerald-500 animate-pulse' : 'bg-purple-600'
-              }`}
-            />
-            <span>{isLiveMode ? 'Live Git: ECHO' : 'Benchmark Rubric'}</span>
-            <ArrowRightLeft className="w-3 h-3 text-slate-400 ml-0.5" />
-          </button>
-        )}
-
-        {/* Breadcrumbs */}
-        <nav className="flex items-center gap-1.5 text-xs text-slate-500 font-medium">
-          <span className="hidden md:inline text-slate-400">Project:</span>
-          
-          {/* Project dropdown */}
-          <div className="relative inline-flex items-center">
+        {/* Project Switcher Pill */}
+        <div className="relative inline-flex items-center">
+          <div className="flex items-center gap-1.5 pl-2.5 pr-7 py-1 text-xs font-semibold rounded-lg bg-slate-100/90 text-slate-800 border border-slate-200/80 hover:bg-slate-100 transition shadow-2xs font-mono">
+            <FolderGit2 className="w-3.5 h-3.5 text-slate-500 shrink-0 pointer-events-none" />
             <select
               value={activeProject?.id || ''}
               onChange={(e) => onSelectProject && onSelectProject(e.target.value)}
-              className="appearance-none pl-6 pr-6 py-1 text-xs font-semibold rounded-md bg-slate-100/80 text-slate-800 border border-slate-200/80 cursor-pointer focus:outline-none focus:ring-1 focus:ring-purple-500 font-mono"
+              className="appearance-none bg-transparent border-0 text-slate-800 font-semibold focus:ring-0 cursor-pointer pr-1 py-0.5 max-w-[130px] sm:max-w-[200px] truncate"
+              aria-label="Select active project workspace"
             >
               {projects.length === 0 ? (
                 <option value="">No projects</option>
@@ -162,78 +123,101 @@ export default function Topbar({
                 ))
               )}
             </select>
-            <FolderGit2 className="w-3.5 h-3.5 text-slate-500 absolute left-1.5 pointer-events-none" />
           </div>
+          <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-2 pointer-events-none" />
+        </div>
 
-          <ChevronRight className="w-3.5 h-3.5 text-slate-300" />
-          <span className="text-slate-900 font-semibold truncate max-w-[140px] sm:max-w-none">
+        {/* Mode Switcher Pill */}
+        {projects.length > 1 && (
+          <button
+            onClick={handleToggleMode}
+            className={`hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold border transition shadow-2xs cursor-pointer ${
+              isLiveMode
+                ? 'bg-emerald-50 text-emerald-800 border-emerald-200 hover:bg-emerald-100'
+                : 'bg-teal-50 text-teal-800 border-teal-200 hover:bg-teal-100'
+            }`}
+            title="Click to toggle between Live Git Ingestion and Benchmark Rubric Dataset"
+          >
+            <span
+              className={`w-1.5 h-1.5 rounded-full ${
+                isLiveMode ? 'bg-emerald-500 animate-pulse' : 'bg-[#18C6B0]'
+              }`}
+            />
+            <span>{isLiveMode ? 'Live Git: ECHO' : 'Benchmark Rubric'}</span>
+            <ArrowRightLeft className="w-3 h-3 text-slate-400 ml-0.5" />
+          </button>
+        )}
+
+        {/* Breadcrumb Navigation */}
+        <nav className="hidden md:flex items-center gap-1.5 text-xs text-slate-400 font-medium min-w-0">
+          <ChevronRight className="w-3.5 h-3.5 text-slate-300 shrink-0" />
+          <span className="text-slate-900 font-semibold truncate">
             {pageTitles[activeTab] || 'Overview'}
           </span>
         </nav>
       </div>
 
-      {/* Right: Connect Repo button, Actual Health Status, Reset shortcut, Successor badge */}
-      <div className="flex items-center gap-2 sm:gap-3">
-        {/* Ingest Repo Button */}
+      {/* Right Controls: Ingest Repository + Subtle Connection Status + User Menu */}
+      <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+        {/* Primary Ingest Repository Action Button */}
         <button
           onClick={onOpenConnectModal}
-          className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium text-purple-700 bg-purple-50 hover:bg-purple-100 border border-purple-200 rounded-lg transition shadow-2xs"
-          title="Scan and ingest a real Git repository"
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-[#071126] bg-[#18C6B0] hover:bg-[#0EB8A0] rounded-xl shadow-xs transition cursor-pointer"
+          title="Scan and ingest a Git repository"
         >
-          <Plus className="w-3.5 h-3.5" />
-          <span className="hidden sm:inline">Ingest Git Repo</span>
+          <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
+          <span>Ingest Repository</span>
         </button>
 
-        {/* Real Backend Connection Badge */}
+        {/* Subtle, Non-Intrusive Connection Status */}
         <button
           onClick={onRetryConnection}
-          className={`flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full border transition cursor-pointer ${
+          className={`flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-xl border transition cursor-pointer ${
             isOnline
-              ? 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100/70'
+              ? 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
               : isChecking
-              ? 'bg-amber-50 text-amber-700 border-amber-200'
-              : 'bg-rose-50 text-rose-700 border-rose-200 hover:bg-rose-100'
+              ? 'bg-amber-50 text-amber-800 border-amber-200'
+              : 'bg-rose-50 text-rose-800 border-rose-200 hover:bg-rose-100'
           }`}
-          title={isOnline ? 'SQLite persistent database online on port 8000' : 'Backend connection error. Click to retry.'}
+          title={
+            isOnline
+              ? 'Engine connected & synchronized on port 8000 (SQLite)'
+              : 'Connection interrupted. Click to retry.'
+          }
         >
           <span
-            className={`w-1.5 h-1.5 rounded-full ${
-              isOnline ? 'bg-emerald-500 animate-pulse' : isChecking ? 'bg-amber-500 animate-spin' : 'bg-rose-500'
+            className={`w-2 h-2 rounded-full ${
+              isOnline
+                ? 'bg-emerald-500 animate-pulse'
+                : isChecking
+                ? 'bg-amber-500 animate-spin'
+                : 'bg-rose-500'
             }`}
           />
-          <span className="hidden md:inline font-medium text-[11px]">
-            {isOnline ? 'API :8000 (SQLite)' : isChecking ? 'Connecting...' : 'API Offline (Retry)'}
+          <span className="hidden sm:inline font-semibold text-[11px]">
+            {isOnline ? 'Connected' : isChecking ? 'Connecting...' : 'Offline (Retry)'}
           </span>
         </button>
 
-        {/* Reset Demo button */}
-        <button
-          onClick={onResetDemo}
-          disabled={resetting}
-          className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium text-slate-600 hover:text-slate-900 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition shadow-xs disabled:opacity-50"
-          title="Reset benchmark state to pristine demo run"
-        >
-          <RotateCcw className={`w-3.5 h-3.5 ${resetting ? 'animate-spin text-purple-600' : 'text-slate-400'}`} />
-          <span>Reset</span>
-        </button>
-
-        {/* Interactive Authenticated User Profile Menu */}
-        <div className="relative pl-2 border-l border-slate-200/80" ref={menuRef}>
+        {/* Authenticated User Profile Menu (Unclipped & Spacious) */}
+        <div className="relative pl-1 border-l border-slate-200/90" ref={menuRef}>
           <button
             onClick={() => setUserMenuOpen(!userMenuOpen)}
-            className="flex items-center gap-2 p-1 rounded-xl hover:bg-slate-100 transition cursor-pointer text-left focus:outline-none"
+            className="flex items-center gap-2.5 px-2 py-1 rounded-xl hover:bg-slate-100 transition cursor-pointer text-left focus:outline-none"
             aria-label="User profile and session menu"
           >
-            <div className={`w-8 h-8 rounded-full border flex items-center justify-center text-xs font-bold uppercase shadow-2xs ${activeRoleConfig.avatar}`}>
+            <div
+              className={`w-8 h-8 rounded-full border flex items-center justify-center text-xs font-bold uppercase shadow-2xs ${activeRoleConfig.avatar}`}
+            >
               {currentUser?.full_name ? currentUser.full_name.charAt(0) : 'U'}
             </div>
-            <div className="hidden md:block text-left">
-              <div className="text-xs font-semibold text-slate-800 leading-tight truncate max-w-[120px]">
+            <div className="hidden lg:block text-left">
+              <div className="text-xs font-bold text-slate-900 leading-tight">
                 {currentUser?.full_name || 'ECHO User'}
               </div>
               <div className="flex items-center gap-1 mt-0.5">
                 <span className={`w-1.5 h-1.5 rounded-full ${activeRoleConfig.dot}`} />
-                <span className="text-[10px] text-slate-500 font-medium leading-none truncate max-w-[100px]">
+                <span className="text-[10px] text-slate-500 font-medium leading-none">
                   {currentUser?.role_display || activeRoleConfig.label}
                 </span>
               </div>
@@ -243,11 +227,13 @@ export default function Topbar({
 
           {/* User Dropdown Menu */}
           {userMenuOpen && (
-            <div className="absolute right-0 mt-2 w-72 rounded-2xl bg-white border border-slate-200/90 shadow-xl shadow-slate-900/10 z-50 p-3 space-y-3 animate-fadeIn">
+            <div className="absolute right-0 mt-2 w-72 rounded-2xl bg-white border border-slate-200 shadow-xl shadow-slate-900/10 z-50 p-3 space-y-3 fade-in">
               {/* User Identity Header */}
               <div className="p-3 rounded-xl bg-slate-50 border border-slate-200/80">
                 <div className="flex items-center gap-2.5">
-                  <div className={`w-10 h-10 rounded-full border flex items-center justify-center text-sm font-bold uppercase shadow-sm ${activeRoleConfig.avatar}`}>
+                  <div
+                    className={`w-10 h-10 rounded-full border flex items-center justify-center text-sm font-bold uppercase shadow-2xs ${activeRoleConfig.avatar}`}
+                  >
                     {currentUser?.full_name ? currentUser.full_name.charAt(0) : 'U'}
                   </div>
                   <div className="truncate flex-1">
@@ -264,7 +250,9 @@ export default function Topbar({
                   <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
                     Active Role
                   </span>
-                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md border ${activeRoleConfig.color}`}>
+                  <span
+                    className={`text-[10px] font-bold px-2 py-0.5 rounded-md border ${activeRoleConfig.color}`}
+                  >
                     {currentUser?.role_display || activeRoleConfig.label}
                   </span>
                 </div>
@@ -293,9 +281,9 @@ export default function Topbar({
                           }
                           setUserMenuOpen(false);
                         }}
-                        className={`px-2 py-1.5 rounded-lg text-xs font-medium text-left transition cursor-pointer flex items-center justify-between ${
+                        className={`px-2 py-1.5 rounded-lg text-xs font-semibold text-left transition cursor-pointer flex items-center justify-between ${
                           isCur
-                            ? 'bg-slate-900 text-white font-semibold shadow-xs'
+                            ? 'bg-slate-900 text-white shadow-2xs'
                             : 'bg-slate-50 hover:bg-slate-100 text-slate-700'
                         }`}
                       >
@@ -315,10 +303,10 @@ export default function Topbar({
                     setUserMenuOpen(false);
                     if (onLogout) onLogout();
                   }}
-                  className="w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold text-rose-600 hover:text-rose-700 hover:bg-rose-50 transition cursor-pointer"
+                  className="w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold text-rose-700 hover:text-rose-800 hover:bg-rose-50 transition cursor-pointer"
                 >
                   <div className="flex items-center gap-2">
-                    <LogOut className="w-4 h-4 text-rose-500" />
+                    <LogOut className="w-4 h-4 text-rose-600" />
                     <span>Sign Out of ECHO</span>
                   </div>
                   <span className="text-[10px] text-slate-400">end session</span>

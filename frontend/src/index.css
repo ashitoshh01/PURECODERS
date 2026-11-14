@@ -1,16 +1,32 @@
 @import "tailwindcss";
 
+@theme {
+  --color-brand: #18C6B0;
+  --color-brand-hover: #0EB8A0;
+  --color-brand-light: #E6FAF7;
+  --color-brand-dark: #0B6B5F;
+  --color-navy: #071126;
+  --color-navy-card: #0B162C;
+  --color-navy-border: #19325C;
+}
+
 @layer base {
   :root {
     --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
   }
   
   body {
-    background-color: #f8fafc;
-    color: #0f172a;
+    background-color: #F8FAFC;
+    color: #0F172A;
     font-family: var(--font-sans);
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+  }
+
+  /* Accessible focus indicators */
+  :focus-visible {
+    outline: 2px solid #18C6B0;
+    outline-offset: 2px;
   }
 }
 
@@ -25,12 +41,12 @@
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #cbd5e1;
+  background: #CBD5E1;
   border-radius: 9999px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #94a3b8;
+  background: #94A3B8;
 }
 
 /* Smooth micro-animations */
@@ -49,3 +65,28 @@
   }
 }
 
+/* Slide in from right for drawers */
+.slide-in-right {
+  animation: slideInRight 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes slideInRight {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+/* Respect reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  ::before,
+  ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

@@ -1,5 +1,5 @@
 import React from 'react';
-import { AlertTriangle, ShieldAlert, CheckCircle2 } from 'lucide-react';
+import { AlertTriangle, ShieldAlert } from 'lucide-react';
 import { getRiskColor } from '../../api';
 
 export function RiskBadge({ score, pct, showLabel = true, size = 'md' }) {
@@ -14,13 +14,13 @@ export function RiskBadge({ score, pct, showLabel = true, size = 'md' }) {
 
   return (
     <span
-      className={`inline-flex items-center gap-1.5 font-medium rounded-full border ${color.badge} ${sizeClasses[size] || sizeClasses.md}`}
+      className={`inline-flex items-center gap-1.5 font-semibold rounded-full border ${color.badge} ${sizeClasses[size] || sizeClasses.md}`}
     >
       <span className={`w-1.5 h-1.5 rounded-full ${color.dot}`} />
       <span>{percentage}%</span>
       {showLabel && (
-        <span className="text-[10px] opacity-75 font-normal uppercase tracking-wider">
-          {percentage >= 50 ? 'High' : percentage >= 30 ? 'Medium' : 'Low'}
+        <span className="text-[10px] font-medium uppercase tracking-wider opacity-90">
+          {percentage >= 50 ? 'High' : percentage >= 25 ? 'Medium' : 'Low'}
         </span>
       )}
     </span>
@@ -29,8 +29,8 @@ export function RiskBadge({ score, pct, showLabel = true, size = 'md' }) {
 
 export function BusFactorBadge() {
   return (
-    <span className="inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-full bg-rose-50 text-rose-700 border border-rose-200">
-      <AlertTriangle className="w-3 h-3 text-rose-500" />
+    <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full bg-rose-50 text-rose-700 border border-rose-200">
+      <AlertTriangle className="w-3 h-3 text-rose-600 shrink-0" />
       <span>Bus factor 1</span>
     </span>
   );
@@ -38,10 +38,9 @@ export function BusFactorBadge() {
 
 export function PlantedGapBadge() {
   return (
-    <span className="inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-full bg-purple-50 text-purple-700 border border-purple-200">
-      <ShieldAlert className="w-3 h-3 text-purple-500" />
+    <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full bg-purple-50 text-purple-700 border border-purple-200">
+      <ShieldAlert className="w-3 h-3 text-purple-600 shrink-0" />
       <span>Planted Gap</span>
     </span>
   );
 }
-

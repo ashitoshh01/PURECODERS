@@ -7,7 +7,7 @@ import {
   AlertCircle,
   CheckCircle2,
   Terminal,
-  ExternalLink
+  ExternalLink,
 } from 'lucide-react';
 import { echoApi } from '../../api';
 
@@ -48,11 +48,11 @@ export default function ForgotPassword({
       <div className="absolute bottom-[-10%] right-[-10%] w-[500px] h-[500px] bg-indigo-600/15 rounded-full blur-[140px] pointer-events-none" />
 
       {/* Main Container */}
-      <div className="w-full max-w-md relative z-10">
+      <div className="w-full max-w-md relative z-10 fade-in">
         {/* ECHO Branding & Header */}
         <div className="text-center mb-6">
           <div className="inline-flex items-center justify-center gap-2.5 px-3 py-1.5 rounded-full bg-[#0d1d3d] border border-[#1b345f] shadow-lg mb-3">
-            <div className="w-6 h-6 rounded-lg bg-gradient-to-tr from-[#18C6B0] to-indigo-500 flex items-center justify-center text-[#071126] shadow-sm">
+            <div className="w-6 h-6 rounded-lg bg-gradient-to-tr from-[#18C6B0] to-teal-400 flex items-center justify-center text-[#071126] shadow-sm font-bold">
               <Sparkles className="w-3.5 h-3.5 fill-current" />
             </div>
             <span className="text-xs font-semibold tracking-wider text-slate-200 uppercase">ECHO Security</span>
@@ -71,7 +71,7 @@ export default function ForgotPassword({
           {error && (
             <div className="mb-5 p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs flex items-start gap-2.5 animate-fadeIn">
               <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-rose-400" />
-              <div className="flex-1 leading-relaxed">{error}</div>
+              <div className="flex-1 leading-relaxed font-medium">{error}</div>
             </div>
           )}
 
@@ -80,7 +80,7 @@ export default function ForgotPassword({
               <div className="p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-xs flex items-start gap-3">
                 <CheckCircle2 className="w-5 h-5 shrink-0 mt-0.5 text-emerald-400" />
                 <div className="leading-relaxed">
-                  <span className="font-semibold block text-sm mb-1 text-emerald-200">
+                  <span className="font-bold block text-sm mb-1 text-emerald-200">
                     Request Received
                   </span>
                   {successData.message}
@@ -90,7 +90,7 @@ export default function ForgotPassword({
               {/* Development Mode Direct Reset Helper */}
               {successData.dev_reset_token && (
                 <div className="p-4 rounded-xl bg-[#081224] border border-[#1a345c] space-y-3">
-                  <div className="flex items-center gap-2 text-xs font-semibold text-[#18C6B0]">
+                  <div className="flex items-center gap-2 text-xs font-bold text-[#18C6B0]">
                     <Terminal className="w-4 h-4" />
                     <span>Development Safe Reset Flow</span>
                   </div>
@@ -104,12 +104,12 @@ export default function ForgotPassword({
                         onNavigateResetWithToken(successData.dev_reset_token);
                       }
                     }}
-                    className="w-full py-2 px-3 rounded-lg bg-[#18C6B0]/15 hover:bg-[#18C6B0]/25 text-[#18C6B0] border border-[#18C6B0]/30 text-xs font-semibold flex items-center justify-center gap-2 transition cursor-pointer"
+                    className="w-full py-2.5 px-3 rounded-xl bg-[#18C6B0]/15 hover:bg-[#18C6B0]/25 text-[#18C6B0] border border-[#18C6B0]/30 text-xs font-bold flex items-center justify-center gap-2 transition cursor-pointer"
                   >
                     <span>Proceed to Reset Password</span>
                     <ExternalLink className="w-3.5 h-3.5" />
                   </button>
-                  <div className="p-2 rounded bg-black/40 text-[10px] font-mono text-slate-400 truncate">
+                  <div className="p-2 rounded-lg bg-black/40 text-[10px] font-mono text-slate-400 truncate">
                     Token: {successData.dev_reset_token}
                   </div>
                 </div>
@@ -118,7 +118,7 @@ export default function ForgotPassword({
               <button
                 type="button"
                 onClick={onNavigateLogin}
-                className="w-full py-2.5 px-4 rounded-xl bg-[#081224] hover:bg-[#0e1d38] border border-[#1b345f] text-slate-300 text-xs font-semibold flex items-center justify-center gap-2 transition cursor-pointer"
+                className="w-full py-2.5 px-4 rounded-xl bg-[#081224] hover:bg-[#0e1d38] border border-[#1b345f] text-slate-300 text-xs font-bold flex items-center justify-center gap-2 transition cursor-pointer"
               >
                 <ArrowLeft className="w-4 h-4" />
                 <span>Return to Sign In</span>
@@ -127,7 +127,7 @@ export default function ForgotPassword({
           ) : (
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
-                <label className="block text-xs font-medium text-slate-300 mb-1.5">
+                <label className="block text-xs font-semibold text-slate-300 mb-1.5">
                   Registered Email Address
                 </label>
                 <div className="relative">
@@ -146,7 +146,7 @@ export default function ForgotPassword({
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full bg-[#18C6B0] hover:bg-[#15b29e] text-[#071126] font-semibold rounded-xl py-2.5 px-4 text-sm shadow-lg shadow-[#18C6B0]/20 transition flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 mt-2"
+                className="w-full bg-[#18C6B0] hover:bg-[#0EB8A0] text-[#071126] font-bold rounded-xl py-2.5 px-4 text-sm shadow-lg shadow-[#18C6B0]/20 transition flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 mt-2"
               >
                 {loading ? (
                   <>
@@ -156,7 +156,7 @@ export default function ForgotPassword({
                 ) : (
                   <>
                     <span>Send Reset Instructions</span>
-                    <ArrowRight className="w-4 h-4" />
+                    <ArrowRight className="w-4 h-4 stroke-[2.5]" />
                   </>
                 )}
               </button>
@@ -164,7 +164,7 @@ export default function ForgotPassword({
               <button
                 type="button"
                 onClick={onNavigateLogin}
-                className="w-full text-center text-xs text-slate-400 hover:text-slate-200 transition pt-2 flex items-center justify-center gap-1 cursor-pointer"
+                className="w-full text-center text-xs text-slate-400 hover:text-slate-200 transition pt-2 flex items-center justify-center gap-1 cursor-pointer font-medium"
               >
                 <ArrowLeft className="w-3.5 h-3.5" />
                 <span>Back to login</span>
@@ -176,4 +176,3 @@ export default function ForgotPassword({
     </div>
   );
 }
-

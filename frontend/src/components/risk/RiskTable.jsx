@@ -1,7 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import {
   Search,
-  Filter,
   ArrowUpDown,
   FileCode,
   GitPullRequest,
@@ -9,10 +8,8 @@ import {
   MessageSquare,
   FileText,
   ChevronRight,
-  ExternalLink,
-  Info
 } from 'lucide-react';
-import { RiskBadge, BusFactorBadge, PlantedGapBadge } from '../common/RiskBadge';
+import { RiskBadge } from '../common/RiskBadge';
 import { getRiskColor } from '../../api';
 
 export default function RiskTable({
@@ -24,7 +21,7 @@ export default function RiskTable({
   onSelectArtifact,
 }) {
   const [search, setSearch] = useState('');
-  const [filterType, setFilterType] = useState('all'); // 'all' | 'high' | 'bus1' | 'planted' | 'module' | 'pull_request' | 'ticket'
+  const [filterType, setFilterType] = useState('all'); // 'all' | 'at_risk' | 'critical' | 'bus1' | 'planted' | 'module' | 'pull_request' | 'ticket'
   const [sortKey, setSortKey] = useState('risk_desc'); // 'risk_desc' | 'risk_asc' | 'criticality' | 'recency' | 'title'
 
   const typeIcons = {
@@ -48,8 +45,9 @@ export default function RiskTable({
 
       if (!matchesSearch) return false;
 
-      // Type / Status filter
-      if (filterType === 'high') return a.risk_pct >= 50;
+      // Filter logic aligned with deterministic thresholds
+      if (filterType === 'at_risk') return a.risk_pct >= 30; // Matches KPI card threshold (37)
+      if (filterType === 'critical') return a.risk_pct >= 50; // Matches Critical tier (28)
       if (filterType === 'bus1') return a.bus_factor_one;
       if (filterType === 'planted') return plantedGaps.includes(a.artifact_id);
       if (filterType === 'module') return a.type === 'module' || a.type === 'script';
@@ -80,9 +78,9 @@ export default function RiskTable({
   }, [filteredArtifacts, sortKey]);
 
   return (
-    <div className="bg-white rounded-xl border border-slate-200/80 shadow-xs overflow-hidden">
+    <div className="bg-white rounded-xl border border-slate-200/90 shadow-xs overflow-hidden">
       {/* Table Toolbar */}
-      <div className="p-4 border-b border-slate-200/80 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-white">
+      <div className="p-4 border-b border-slate-200/90 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-white">
         {/* Search */}
         <div className="relative flex-1 max-w-sm">
           <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
@@ -91,7 +89,7 @@ export default function RiskTable({
             placeholder="Search artifacts, IDs, or file paths..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-9 pr-4 py-1.5 text-xs rounded-lg border border-slate-200 bg-slate-50/50 text-slate-800 placeholder-slate-400 focus:outline-none focus:border-purple-500 focus:bg-white transition"
+            className="w-full pl-9 pr-4 py-1.5 text-xs rounded-xl border border-slate-200 bg-slate-50 text-slate-900 placeholder-slate-400 focus:outline-none focus:border-[#18C6B0] focus:bg-white transition"
           />
         </div>
 
@@ -100,17 +98,18 @@ export default function RiskTable({
           {/* Quick Filters */}
           <div className="flex items-center gap-1 overflow-x-auto pb-1 sm:pb-0">
             {[
-              { id: 'all', label: 'All' },
-              { id: 'high', label: 'High Risk (≥50%)' },
+              { id: 'all', label: 'All Artifacts' },
+              { id: 'at_risk', label: 'At Risk (≥30%)' },
+              { id: 'critical', label: 'Critical (≥50%)' },
               { id: 'bus1', label: 'Bus Factor 1' },
               { id: 'planted', label: 'Planted Gaps' },
             ].map((f) => (
               <button
                 key={f.id}
                 onClick={() => setFilterType(f.id)}
-                className={`text-xs px-2.5 py-1 rounded-md font-medium transition shrink-0 ${
+                className={`text-xs px-2.5 py-1 rounded-lg font-semibold transition shrink-0 cursor-pointer ${
                   filterType === f.id
-                    ? 'bg-purple-50 text-purple-700 border border-purple-200'
+                    ? 'bg-teal-50 text-teal-900 border border-teal-200/90'
                     : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50 border border-transparent'
                 }`}
               >
@@ -125,27 +124,28 @@ export default function RiskTable({
             <select
               value={sortKey}
               onChange={(e) => setSortKey(e.target.value)}
-              className="text-xs bg-transparent border-0 text-slate-700 font-medium focus:ring-0 cursor-pointer pr-4 py-1"
+              className="text-xs bg-transparent border-0 text-slate-700 font-semibold focus:ring-0 cursor-pointer pr-4 py-1"
             >
               <option value="risk_desc">Risk: Highest First</option>
               <option value="risk_asc">Risk: Lowest First</option>
-              <option value="criticality">Criticality</option>
-              <option value="recency">Recency</option>
+              <option value="criticality">Criticality Scale</option>
+              <option value="recency">Recency Weight</option>
               <option value="title">Alphabetical</option>
             </select>
           </div>
         </div>
       </div>
 
-      {/* Table Element */}
+      {/* Table Element (Linear-style File Explorer) */}
       <div className="overflow-x-auto">
         <table className="w-full text-left text-xs text-slate-600">
-          <thead className="bg-slate-50/80 border-b border-slate-200/80 text-slate-500 font-semibold uppercase tracking-wider text-[11px]">
+          <thead className="bg-slate-50/90 border-b border-slate-200/90 text-slate-500 font-semibold uppercase tracking-wider text-[11px]">
             <tr>
-              <th className="py-3 px-4">Artifact &amp; Identifier</th>
+              <th className="py-3 px-4">Artifact Name &amp; ID</th>
               <th className="py-3 px-3">Type</th>
               <th className="py-3 px-3">Ownership ({leaverName})</th>
-              <th className="py-3 px-3">Crit / Doc Gap</th>
+              <th className="py-3 px-3">Criticality</th>
+              <th className="py-3 px-3">Documentation</th>
               <th className="py-3 px-3">Recency</th>
               <th className="py-3 px-4 text-right">Risk Score</th>
               <th className="py-3 px-4 text-center">Action</th>
@@ -154,7 +154,7 @@ export default function RiskTable({
           <tbody className="divide-y divide-slate-100">
             {sortedArtifacts.length === 0 ? (
               <tr>
-                <td colSpan={7} className="py-12 text-center text-slate-400 text-xs">
+                <td colSpan={8} className="py-12 text-center text-slate-400 text-xs">
                   {artifacts.length === 0
                     ? 'No artifacts tracked. Ingest a Git repository to begin tracking knowledge risks.'
                     : 'No artifacts match your search and filter criteria.'}
@@ -166,33 +166,38 @@ export default function RiskTable({
                 const isPlanted = plantedGaps.includes(a.artifact_id);
                 const color = getRiskColor(a.risk_pct);
 
+                // Clean filename: remove redundant "— script" if present in title
+                const cleanTitle = a.title.split('—')[0].trim();
+                const critScore = a.components?.criticality != null ? Math.round(a.components.criticality * 5) : null;
+                const docGapPct = Math.round((a.components?.doc_gap ?? 0) * 100);
+
                 return (
                   <tr
                     key={a.artifact_id}
                     onClick={() => onSelectArtifact(a)}
-                    className="hover:bg-slate-50/80 transition cursor-pointer group"
+                    className="hover:bg-slate-50/90 transition cursor-pointer group"
                   >
-                    {/* Artifact Title and ID */}
-                    <td className="py-3 px-4 max-w-xs sm:max-w-md">
+                    {/* Artifact Title & Identifier */}
+                    <td className="py-4 px-4 max-w-xs sm:max-w-md">
                       <div className="flex items-start gap-2.5">
-                        <div className="p-1.5 rounded-lg bg-slate-100 text-slate-600 group-hover:bg-purple-50 group-hover:text-purple-600 transition mt-0.5 shrink-0">
+                        <div className="p-1.5 rounded-lg bg-slate-100 text-slate-600 group-hover:bg-teal-50 group-hover:text-teal-900 transition mt-0.5 shrink-0 border border-slate-200/60">
                           <Icon className="w-4 h-4" />
                         </div>
-                        <div>
-                          <div className="font-medium text-slate-900 group-hover:text-purple-700 transition">
-                            {a.title}
+                        <div className="min-w-0">
+                          <div className="font-bold text-slate-900 group-hover:text-teal-900 transition truncate leading-snug">
+                            {cleanTitle}
                           </div>
-                          <div className="flex items-center gap-2 mt-1">
-                            <span className="font-mono text-[11px] text-slate-400">
+                          <div className="flex flex-wrap items-center gap-1.5 mt-1">
+                            <span className="font-mono text-[10px] text-slate-500 font-medium bg-slate-100 px-1 py-0.2 rounded border border-slate-200/60">
                               {a.artifact_id}
                             </span>
                             {a.bus_factor_one && (
-                              <span className="text-[10px] font-medium px-1.5 py-0.2 rounded-full bg-rose-50 text-rose-700 border border-rose-200">
+                              <span className="text-[10px] font-semibold px-1.5 py-0.2 rounded-full bg-rose-50 text-rose-700 border border-rose-200">
                                 Bus factor 1
                               </span>
                             )}
                             {isPlanted && (
-                              <span className="text-[10px] font-medium px-1.5 py-0.2 rounded-full bg-purple-50 text-purple-700 border border-purple-200">
+                              <span className="text-[10px] font-semibold px-1.5 py-0.2 rounded-full bg-purple-50 text-purple-700 border border-purple-200">
                                 Planted gap
                               </span>
                             )}
@@ -201,22 +206,22 @@ export default function RiskTable({
                       </div>
                     </td>
 
-                    {/* Type */}
-                    <td className="py-3 px-3">
-                      <span className="text-[11px] font-medium text-slate-600 px-2 py-0.5 rounded bg-slate-100 capitalize">
+                    {/* Type Column */}
+                    <td className="py-4 px-3">
+                      <span className="text-[11px] font-semibold text-slate-600 px-2 py-0.5 rounded-md bg-slate-100 border border-slate-200/60 capitalize">
                         {a.type}
                       </span>
                     </td>
 
-                    {/* Ownership Concentration */}
-                    <td className="py-3 px-3">
+                    {/* Ownership Column (Clean percentage + slim 4px progress indicator) */}
+                    <td className="py-4 px-3">
                       <div className="flex items-center gap-2">
-                        <span className="font-medium text-slate-800">
+                        <span className="font-bold text-slate-900 font-mono text-xs w-10">
                           {Math.round((a.components?.ownership_concentration ?? 0) * 100)}%
                         </span>
-                        <div className="w-12 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                        <div className="w-14 h-1 bg-slate-100 rounded-full overflow-hidden border border-slate-200/60">
                           <div
-                            className="h-full bg-purple-600 rounded-full"
+                            className="h-full bg-[#18C6B0] rounded-full"
                             style={{
                               width: `${Math.round((a.components?.ownership_concentration ?? 0) * 100)}%`,
                             }}
@@ -225,25 +230,48 @@ export default function RiskTable({
                       </div>
                     </td>
 
-                    {/* Criticality & Doc Gap */}
-                    <td className="py-3 px-3 font-mono text-[11px] text-slate-500">
-                      <div>Crit: {a.components?.criticality != null ? Math.round(a.components.criticality * 5) : '—'}/5</div>
-                      <div className="text-slate-400">
-                        Doc gap: {Math.round((a.components?.doc_gap ?? 0) * 100)}%
-                      </div>
+                    {/* Criticality Column (Clean score + indicator) */}
+                    <td className="py-4 px-3">
+                      {critScore != null ? (
+                        <div className="flex items-center gap-1.5 font-mono text-xs font-semibold text-slate-800">
+                          <span>{critScore}/5</span>
+                          <span
+                            className={`w-1.5 h-1.5 rounded-full ${
+                              critScore >= 4 ? 'bg-rose-500' : critScore >= 3 ? 'bg-amber-500' : 'bg-slate-300'
+                            }`}
+                          />
+                        </div>
+                      ) : (
+                        <span className="text-slate-400">—</span>
+                      )}
                     </td>
 
-                    {/* Recency */}
-                    <td className="py-3 px-3 font-mono text-[11px] text-slate-600">
+                    {/* Documentation Gap Column */}
+                    <td className="py-4 px-3">
+                      <span
+                        className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${
+                          docGapPct >= 80
+                            ? 'bg-rose-50 text-rose-700 border-rose-200'
+                            : docGapPct >= 50
+                            ? 'bg-amber-50 text-amber-800 border-amber-200'
+                            : 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                        }`}
+                      >
+                        {docGapPct}% gap
+                      </span>
+                    </td>
+
+                    {/* Recency Column */}
+                    <td className="py-4 px-3 font-mono text-[11px] text-slate-700 font-semibold">
                       ×{a.components?.recency_weight}
                     </td>
 
-                    {/* Risk Score */}
-                    <td className="py-3 px-4 text-right">
-                      <div className="flex items-center justify-end gap-2">
+                    {/* Risk Score Column (Prominent % + slim 4px rounded bar) */}
+                    <td className="py-4 px-4 text-right">
+                      <div className="flex items-center justify-end gap-1.5 mb-1.5">
                         <RiskBadge pct={a.risk_pct} size="sm" showLabel={false} />
                       </div>
-                      <div className="w-20 ml-auto mt-1.5 h-1 bg-slate-100 rounded-full overflow-hidden">
+                      <div className="w-20 ml-auto h-1 bg-slate-100 rounded-full overflow-hidden border border-slate-200/60">
                         <div
                           className={`h-full rounded-full ${color.bar}`}
                           style={{ width: `${Math.min(100, a.risk_pct)}%` }}
@@ -251,9 +279,9 @@ export default function RiskTable({
                       </div>
                     </td>
 
-                    {/* Actions */}
-                    <td className="py-3 px-4 text-center">
-                      <span className="inline-flex items-center gap-1 text-slate-400 group-hover:text-purple-600 text-xs font-medium transition">
+                    {/* Action Column */}
+                    <td className="py-4 px-4 text-center">
+                      <span className="inline-flex items-center gap-1 text-slate-400 group-hover:text-teal-900 text-xs font-semibold transition">
                         <span>Details</span>
                         <ChevronRight className="w-3.5 h-3.5" />
                       </span>
@@ -267,7 +295,7 @@ export default function RiskTable({
       </div>
 
       {/* Footer Info */}
-      <div className="p-3 bg-slate-50/60 border-t border-slate-200/80 flex items-center justify-between text-xs text-slate-500">
+      <div className="p-3 bg-slate-50/80 border-t border-slate-200/90 flex items-center justify-between text-xs text-slate-500 font-medium">
         <span>Showing {sortedArtifacts.length} of {artifacts?.length || 0} tracked artifacts</span>
         <span className="font-mono text-[11px]">{repoName} branch @ {branch}</span>
       </div>

@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import {
-  Package,
   Calendar,
   AlertTriangle,
   Repeat,
@@ -8,10 +7,7 @@ import {
   ScrollText,
   RefreshCw,
   CheckCircle2,
-  Clock,
   ShieldCheck,
-  Sparkles,
-  ExternalLink,
 } from 'lucide-react';
 import PageHeader from '../common/PageHeader';
 import LoadingState from '../common/LoadingState';
@@ -103,26 +99,26 @@ export default function Handover({ active, onNavigateToInterview, activeProject,
         title={hasPackage ? `Handover Package for ${successorName}` : 'Handover Package'}
         subtitle={
           hasPackage
-            ? `Successor package curated from ${leaverName}'s knowledge graph & exit interview · Reviewed by ${managerName}`
+            ? `Structured successor onboarding plan curated from ${leaverName}'s knowledge graph · Reviewed by ${managerName}`
             : 'No handover package generated yet. Handover packages are automatically generated when a repository is ingested.'
         }
         badge={!hasPackage ? 'Not Generated' : isApproved ? 'Approved by Manager' : 'Pending Manager Review'}
         actions={
           <div className="flex items-center gap-2">
-            {/* Real Approval Toggle Button */}
+            {/* Approval Action Button */}
             <button
               onClick={handleToggleApproval}
               disabled={approving || isApproved || !hasPackage}
-              className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border transition shadow-xs ${
+              className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg border transition shadow-2xs ${
                 !hasPackage
                   ? 'bg-slate-50 text-slate-400 border-slate-200 cursor-not-allowed'
                   : isApproved
                   ? 'bg-emerald-50 text-emerald-800 border-emerald-200 cursor-default'
-                  : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
+                  : 'bg-[#18C6B0] hover:bg-[#0EB8A0] text-[#071126] border-transparent cursor-pointer'
               }`}
             >
               <CheckCircle2
-                className={`w-3.5 h-3.5 ${isApproved ? 'text-emerald-600' : 'text-slate-400'}`}
+                className={`w-3.5 h-3.5 ${isApproved ? 'text-emerald-600' : 'text-[#071126]'}`}
               />
               <span>
                 {!hasPackage
@@ -137,10 +133,10 @@ export default function Handover({ active, onNavigateToInterview, activeProject,
 
             <button
               onClick={loadHandover}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-700 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition shadow-xs"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-700 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition shadow-2xs cursor-pointer"
             >
               <RefreshCw
-                className={`w-3.5 h-3.5 ${loading ? 'animate-spin text-purple-600' : 'text-slate-400'}`}
+                className={`w-3.5 h-3.5 ${loading ? 'animate-spin text-[#0EB8A0]' : 'text-slate-400'}`}
               />
               <span>Refresh Package</span>
             </button>
@@ -148,14 +144,14 @@ export default function Handover({ active, onNavigateToInterview, activeProject,
         }
       />
 
-      {/* Dynamic Overview Stat Cards */}
+      {/* 4 Summary Metric Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <MetricCard
-          label="Onboarding Path"
+          label="Onboarding Timeline"
           value={tasksCount > 0 ? `${totalWeeks} Week${totalWeeks > 1 ? 's' : ''}` : '0 Weeks'}
           subtext={`${tasksCount} structured milestone tasks`}
           icon={Calendar}
-          accent="purple"
+          accent="teal"
         />
 
         <MetricCard
@@ -176,7 +172,7 @@ export default function Handover({ active, onNavigateToInterview, activeProject,
         />
 
         <MetricCard
-          label="Package Status"
+          label="Handover Sign-off"
           value={!hasPackage ? 'None' : isApproved ? 'Approved' : 'Pending'}
           subtext={!hasPackage ? 'No package generated yet' : isApproved ? `Signed off by ${managerName}` : 'Awaiting EM sign-off'}
           icon={ShieldCheck}
@@ -185,7 +181,7 @@ export default function Handover({ active, onNavigateToInterview, activeProject,
       </div>
 
       {/* Navigation Filter Tabs */}
-      <div className="flex items-center gap-1 overflow-x-auto pb-1 border-b border-slate-200">
+      <div className="flex items-center gap-1 overflow-x-auto pb-1 border-b border-slate-200/90">
         {[
           { id: 'all', label: 'Complete Document' },
           { id: 'onboarding', label: '🗓 Onboarding Path' },
@@ -197,9 +193,9 @@ export default function Handover({ active, onNavigateToInterview, activeProject,
           <button
             key={tab.id}
             onClick={() => setActiveSection(tab.id)}
-            className={`text-xs px-3 py-1.5 rounded-lg font-medium transition shrink-0 ${
+            className={`text-xs px-3 py-1.5 rounded-lg font-semibold transition shrink-0 cursor-pointer ${
               activeSection === tab.id
-                ? 'bg-purple-50 text-purple-700 border border-purple-200'
+                ? 'bg-teal-50 text-teal-800 border border-teal-200/90'
                 : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50 border border-transparent'
             }`}
           >
@@ -209,18 +205,18 @@ export default function Handover({ active, onNavigateToInterview, activeProject,
       </div>
 
       {/* Handover Sections */}
-      <div className="space-y-8">
+      <div className="space-y-6">
         {/* 1. Onboarding Path */}
         {(activeSection === 'all' || activeSection === 'onboarding') && (
-          <section className="bg-white rounded-xl border border-slate-200/80 p-5 shadow-xs">
+          <section className="bg-white rounded-xl border border-slate-200/90 p-5 shadow-xs">
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2">
-                <Calendar className="w-4 h-4 text-purple-600" />
-                <h3 className="text-sm font-semibold text-slate-900">
+                <Calendar className="w-4 h-4 text-[#0EB8A0]" />
+                <h3 className="text-sm font-bold text-slate-900">
                   🗓 Successor Onboarding Plan
                 </h3>
               </div>
-              <span className="text-xs text-slate-400">Click tasks to toggle completed state (saved to database)</span>
+              <span className="text-xs text-slate-400 font-medium">Click tasks to toggle completed state (saved to database)</span>
             </div>
             <HandoverTimeline
               onboardingPath={data?.onboarding_path || []}
@@ -231,15 +227,15 @@ export default function Handover({ active, onNavigateToInterview, activeProject,
 
         {/* 2. Critical Landmines */}
         {(activeSection === 'all' || activeSection === 'landmines') && (
-          <section className="bg-white rounded-xl border border-slate-200/80 p-5 shadow-xs">
+          <section className="bg-white rounded-xl border border-slate-200/90 p-5 shadow-xs">
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2">
                 <AlertTriangle className="w-4 h-4 text-rose-500" />
-                <h3 className="text-sm font-semibold text-slate-900">
+                <h3 className="text-sm font-bold text-slate-900">
                   💣 High-Risk Landmines &amp; Captured Insights
                 </h3>
               </div>
-              <span className="text-xs text-slate-400">
+              <span className="text-xs text-slate-500 font-medium">
                 {answeredLandmines} of {totalLandmines} captured
               </span>
             </div>
@@ -263,15 +259,15 @@ export default function Handover({ active, onNavigateToInterview, activeProject,
           </section>
         )}
 
-        {/* 3. Open Loops & Contacts Grid */}
+        {/* 3. Open Loops & Who to Ask Grid */}
         {(activeSection === 'all' || activeSection === 'loops' || activeSection === 'contacts') && (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Open Loops */}
             {(activeSection === 'all' || activeSection === 'loops') && (
-              <section className="bg-white rounded-xl border border-slate-200/80 p-5 shadow-xs">
+              <section className="bg-white rounded-xl border border-slate-200/90 p-5 shadow-xs">
                 <div className="flex items-center gap-2 mb-3">
                   <Repeat className="w-4 h-4 text-amber-500" />
-                  <h3 className="text-sm font-semibold text-slate-900">🔁 Active Open Loops</h3>
+                  <h3 className="text-sm font-bold text-slate-900">🔁 Active Open Loops</h3>
                 </div>
                 {data?.open_loops?.length === 0 ? (
                   <p className="text-xs text-slate-400 italic py-4 text-center">No open loops recorded.</p>
@@ -280,15 +276,15 @@ export default function Handover({ active, onNavigateToInterview, activeProject,
                     {(data?.open_loops || []).map((loop) => (
                       <div key={loop.id} className="py-2.5 first:pt-0 last:pb-0">
                         <div className="flex items-start justify-between gap-2">
-                          <span className="text-xs font-medium text-slate-800 leading-snug">
+                          <span className="text-xs font-semibold text-slate-800 leading-snug">
                             {loop.title}
                           </span>
-                          <span className="font-mono text-[10px] px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 shrink-0">
+                          <span className="font-mono text-[10px] px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 shrink-0 font-medium">
                             {loop.artifact_id}
                           </span>
                         </div>
-                        <div className="text-[11px] text-slate-400 mt-1">
-                          Current Owner: <span className="text-slate-600 font-medium capitalize">{loop.owner_id}</span>
+                        <div className="text-[11px] text-slate-500 mt-1">
+                          Current Owner: <span className="text-slate-700 font-semibold capitalize">{loop.owner_id}</span>
                         </div>
                       </div>
                     ))}
@@ -299,10 +295,10 @@ export default function Handover({ active, onNavigateToInterview, activeProject,
 
             {/* Who to Ask */}
             {(activeSection === 'all' || activeSection === 'contacts') && (
-              <section className="bg-white rounded-xl border border-slate-200/80 p-5 shadow-xs">
+              <section className="bg-white rounded-xl border border-slate-200/90 p-5 shadow-xs">
                 <div className="flex items-center gap-2 mb-3">
-                  <Users className="w-4 h-4 text-purple-600" />
-                  <h3 className="text-sm font-semibold text-slate-900">👤 Subject Matter Contacts</h3>
+                  <Users className="w-4 h-4 text-[#0EB8A0]" />
+                  <h3 className="text-sm font-bold text-slate-900">👤 Subject Matter Contacts</h3>
                 </div>
                 {data?.who_to_ask?.length === 0 ? (
                   <p className="text-xs text-slate-400 italic py-4 text-center">No specific contacts assigned.</p>
@@ -311,16 +307,16 @@ export default function Handover({ active, onNavigateToInterview, activeProject,
                     {(data?.who_to_ask || []).map((w, idx) => (
                       <div key={idx} className="py-2.5 first:pt-0 last:pb-0 flex items-center justify-between text-xs">
                         <div>
-                          <div className="font-medium text-slate-900">{w.area}</div>
+                          <div className="font-bold text-slate-900">{w.area}</div>
                           <div className="text-slate-500 mt-0.5">
-                            Reach out to: <span className="font-medium text-purple-700">{w.contact}</span>
+                            Reach out to: <span className="font-semibold text-teal-800">{w.contact}</span>
                           </div>
                         </div>
                         <span
-                          className={`text-[10px] font-medium px-2 py-0.5 rounded-full border ${
+                          className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${
                             w.confidence === 'high'
-                              ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                              : 'bg-amber-50 text-amber-700 border-amber-200'
+                              ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                              : 'bg-amber-50 text-amber-800 border-amber-200'
                           }`}
                         >
                           {w.confidence} confidence
@@ -336,15 +332,15 @@ export default function Handover({ active, onNavigateToInterview, activeProject,
 
         {/* 4. Decision Log */}
         {(activeSection === 'all' || activeSection === 'decisions') && (
-          <section className="bg-white rounded-xl border border-slate-200/80 p-5 shadow-xs">
+          <section className="bg-white rounded-xl border border-slate-200/90 p-5 shadow-xs">
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2">
-                <ScrollText className="w-4 h-4 text-purple-600" />
-                <h3 className="text-sm font-semibold text-slate-900">
+                <ScrollText className="w-4 h-4 text-[#0EB8A0]" />
+                <h3 className="text-sm font-bold text-slate-900">
                   📜 Captured Architectural Decisions Log
                 </h3>
               </div>
-              <span className="text-xs text-slate-400">
+              <span className="text-xs text-slate-400 font-medium">
                 Auto-extracted from exit interview rationales
               </span>
             </div>

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import {
   X,
   FileCode,
@@ -6,16 +6,11 @@ import {
   Ticket,
   MessageSquare,
   FileText,
-  AlertTriangle,
-  ShieldAlert,
   ArrowRight,
   User,
-  Clock,
-  Layers,
   Sparkles,
-  CheckCircle2
 } from 'lucide-react';
-import { RiskBadge, BusFactorBadge, PlantedGapBadge } from '../common/RiskBadge';
+import { RiskBadge, BusFactorBadge } from '../common/RiskBadge';
 import { getRiskColor } from '../../api';
 
 export default function ArtifactDetailDrawer({
@@ -26,6 +21,19 @@ export default function ArtifactDetailDrawer({
   onNavigateToInterview,
   leaverName = 'Departing Lead',
 }) {
+  // Listen for Escape key
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape' && isOpen) {
+        onClose();
+      }
+    };
+    if (isOpen) {
+      document.addEventListener('keydown', handleKeyDown);
+    }
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onClose]);
+
   if (!isOpen || !artifact) return null;
 
   const color = getRiskColor(artifact.risk_pct);
@@ -48,23 +56,23 @@ export default function ArtifactDetailDrawer({
   );
 
   return (
-    <div className="fixed inset-0 z-50 overflow-hidden bg-slate-900/30 backdrop-blur-xs">
-      <div className="absolute inset-0" onClick={onClose} />
+    <div className="fixed inset-0 z-50 overflow-hidden bg-slate-900/40 backdrop-blur-xs">
+      <div className="absolute inset-0" onClick={onClose} aria-hidden="true" />
 
-      <div className="fixed inset-y-0 right-0 max-w-full flex pl-10">
-        <div className="w-screen max-w-md bg-white border-l border-slate-200 shadow-2xl flex flex-col fade-in">
+      <div className="fixed inset-y-0 right-0 max-w-full flex pl-10 pointer-events-none">
+        <div className="w-screen max-w-md bg-white border-l border-slate-200 shadow-2xl flex flex-col pointer-events-auto slide-in-right">
           {/* Header */}
-          <div className="p-6 border-b border-slate-200/80 bg-slate-50/50">
+          <div className="p-6 border-b border-slate-200/90 bg-slate-50/70">
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <div className="p-2 rounded-lg bg-white border border-slate-200 text-purple-600 shadow-xs">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 rounded-xl bg-white border border-slate-200/90 text-[#0EB8A0] shadow-2xs">
                   <TypeIcon className="w-4 h-4" />
                 </div>
                 <div>
-                  <span className="text-[11px] font-mono uppercase text-slate-400">
+                  <span className="text-[11px] font-mono uppercase text-slate-400 font-semibold">
                     {artifact.artifact_id}
                   </span>
-                  <span className="text-[11px] font-medium text-slate-500 uppercase ml-2 px-1.5 py-0.5 rounded bg-slate-100">
+                  <span className="text-[10px] font-semibold text-slate-600 uppercase ml-2 px-1.5 py-0.5 rounded-md bg-slate-200/70">
                     {artifact.type}
                   </span>
                 </div>
@@ -72,13 +80,14 @@ export default function ArtifactDetailDrawer({
 
               <button
                 onClick={onClose}
-                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition"
+                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition cursor-pointer"
+                aria-label="Close drawer"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <h2 className="text-base font-semibold text-slate-900 mt-3 leading-snug">
+            <h2 className="text-base font-bold text-slate-900 mt-3 leading-snug">
               {artifact.title}
             </h2>
 
@@ -95,18 +104,18 @@ export default function ArtifactDetailDrawer({
               <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">
                 Deterministic Risk Factor Breakdown
               </h3>
-              <div className="p-4 bg-slate-50/80 rounded-xl border border-slate-200/80 space-y-3">
+              <div className="p-4 bg-slate-50 rounded-xl border border-slate-200/90 space-y-3.5">
                 {/* Ownership Concentration */}
                 <div>
                   <div className="flex justify-between text-xs mb-1">
-                    <span className="text-slate-500 font-medium">Ownership Concentration ({leaverName})</span>
-                    <span className="font-semibold text-slate-800">
+                    <span className="text-slate-600 font-medium">Ownership Concentration ({leaverName})</span>
+                    <span className="font-bold text-slate-900 font-mono">
                       {Math.round((artifact.components?.ownership_concentration ?? 0) * 100)}%
                     </span>
                   </div>
                   <div className="h-1.5 bg-slate-200 rounded-full overflow-hidden">
                     <div
-                      className="h-full bg-purple-600 rounded-full"
+                      className="h-full bg-[#18C6B0] rounded-full"
                       style={{
                         width: `${Math.round((artifact.components?.ownership_concentration ?? 0) * 100)}%`,
                       }}
@@ -117,8 +126,8 @@ export default function ArtifactDetailDrawer({
                 {/* Criticality */}
                 <div>
                   <div className="flex justify-between text-xs mb-1">
-                    <span className="text-slate-500 font-medium">Criticality Factor</span>
-                    <span className="font-semibold text-slate-800">
+                    <span className="text-slate-600 font-medium">Criticality Factor</span>
+                    <span className="font-bold text-slate-900 font-mono">
                       {artifact.components?.criticality != null
                         ? `${Math.round(artifact.components.criticality * 5)} / 5`
                         : '—'}
@@ -137,8 +146,8 @@ export default function ArtifactDetailDrawer({
                 {/* Documentation Gap */}
                 <div>
                   <div className="flex justify-between text-xs mb-1">
-                    <span className="text-slate-500 font-medium">Documentation Gap (1 - Coverage)</span>
-                    <span className="font-semibold text-slate-800">
+                    <span className="text-slate-600 font-medium">Documentation Gap (1 - Coverage)</span>
+                    <span className="font-bold text-slate-900 font-mono">
                       {Math.round((artifact.components?.doc_gap ?? 0) * 100)}%
                     </span>
                   </div>
@@ -154,8 +163,8 @@ export default function ArtifactDetailDrawer({
 
                 {/* Recency Multiplier */}
                 <div className="pt-2 border-t border-slate-200 flex justify-between items-center text-xs">
-                  <span className="text-slate-500 font-medium">Recency Multiplier</span>
-                  <span className="font-mono font-semibold text-purple-700 bg-purple-50 px-2 py-0.5 rounded border border-purple-200">
+                  <span className="text-slate-600 font-medium">Recency Multiplier</span>
+                  <span className="font-mono font-bold text-teal-800 bg-teal-50 px-2 py-0.5 rounded-md border border-teal-200 text-xs">
                     ×{artifact.components?.recency_weight}
                   </span>
                 </div>
@@ -172,11 +181,11 @@ export default function ArtifactDetailDrawer({
                   {relatedEdges.map((edge, i) => (
                     <div
                       key={i}
-                      className="flex items-center gap-2 p-2.5 rounded-lg border border-slate-200 bg-white text-xs text-slate-700"
+                      className="flex items-center gap-2 p-2.5 rounded-xl border border-slate-200 bg-white text-xs text-slate-700 shadow-2xs"
                     >
                       <User className="w-3.5 h-3.5 text-slate-400" />
                       <span className="font-semibold text-slate-900 capitalize">{edge.source}</span>
-                      <span className="text-slate-400 font-mono text-[11px] px-1.5 py-0.5 bg-slate-100 rounded">
+                      <span className="text-slate-500 font-mono text-[11px] px-1.5 py-0.5 bg-slate-100 rounded-md">
                         {edge.relation}
                       </span>
                       <span className="text-slate-700 font-mono truncate">{edge.target}</span>
@@ -188,13 +197,13 @@ export default function ArtifactDetailDrawer({
               )}
             </div>
 
-            {/* Leaver Assessment */}
-            <div className="p-4 rounded-xl border border-purple-200/80 bg-purple-50/40 space-y-2">
-              <div className="flex items-center gap-2 text-purple-800 font-semibold text-xs uppercase tracking-wide">
-                <Sparkles className="w-3.5 h-3.5 text-purple-600" />
+            {/* Leaver Assessment Callout */}
+            <div className="p-4 rounded-xl border border-teal-200/90 bg-teal-50/50 space-y-2">
+              <div className="flex items-center gap-2 text-teal-900 font-bold text-xs uppercase tracking-wide">
+                <Sparkles className="w-3.5 h-3.5 text-[#0EB8A0]" />
                 <span>Knowledge Extraction Action</span>
               </div>
-              <p className="text-xs text-slate-600 leading-relaxed">
+              <p className="text-xs text-slate-700 leading-relaxed">
                 Because this artifact is flagged as high-risk, Echo prioritized it for {leaverName}'s Exit Interview to capture undocumented tacit knowledge before departure.
               </p>
               {onNavigateToInterview && (
@@ -203,7 +212,7 @@ export default function ArtifactDetailDrawer({
                     onClose();
                     onNavigateToInterview(artifact.artifact_id);
                   }}
-                  className="mt-2 w-full inline-flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-medium text-white bg-purple-600 rounded-lg hover:bg-purple-700 transition shadow-xs"
+                  className="mt-2 w-full inline-flex items-center justify-center gap-1.5 px-4 py-2 text-xs font-semibold text-[#071126] bg-[#18C6B0] hover:bg-[#0EB8A0] rounded-xl shadow-xs transition cursor-pointer"
                 >
                   <span>Go to Exit Interview for this item</span>
                   <ArrowRight className="w-3.5 h-3.5" />

@@ -6,11 +6,8 @@ import {
   Eye,
   EyeOff,
   ArrowRight,
-  ShieldCheck,
   AlertCircle,
-  CheckCircle2,
-  KeyRound,
-  Users
+  Users,
 } from 'lucide-react';
 import { echoApi } from '../../api';
 
@@ -34,28 +31,28 @@ export default function Login({
       email: 'lead@echo.dev',
       pass: 'EchoLead#2026',
       badge: 'Admin',
-      color: 'border-teal-500/40 text-teal-300 bg-teal-500/10'
+      color: 'border-teal-500/40 text-teal-300 bg-teal-500/10',
     },
     {
       role: 'Departing Lead',
       email: 'leaver@echo.dev',
       pass: 'EchoLeaver#2026',
       badge: 'Exit Interview',
-      color: 'border-purple-500/40 text-purple-300 bg-purple-500/10'
+      color: 'border-purple-500/40 text-purple-300 bg-purple-500/10',
     },
     {
       role: 'Successor',
       email: 'successor@echo.dev',
       pass: 'EchoSuccessor#2026',
       badge: 'Handover & AI',
-      color: 'border-emerald-500/40 text-emerald-300 bg-emerald-500/10'
+      color: 'border-emerald-500/40 text-emerald-300 bg-emerald-500/10',
     },
     {
       role: 'Reviewer',
       email: 'reviewer@echo.dev',
       pass: 'EchoReviewer#2026',
       badge: 'Verification',
-      color: 'border-amber-500/40 text-amber-300 bg-amber-500/10'
+      color: 'border-amber-500/40 text-amber-300 bg-amber-500/10',
     },
   ];
 
@@ -109,11 +106,11 @@ export default function Login({
       <div className="absolute bottom-[-15%] right-[-10%] w-[500px] h-[500px] bg-indigo-600/15 rounded-full blur-[140px] pointer-events-none" />
 
       {/* Main Container */}
-      <div className="w-full max-w-md relative z-10">
+      <div className="w-full max-w-md relative z-10 fade-in">
         {/* ECHO Branding & Header */}
         <div className="text-center mb-6">
           <div className="inline-flex items-center justify-center gap-2.5 px-3 py-1.5 rounded-full bg-[#0d1d3d] border border-[#1b345f] shadow-lg mb-3">
-            <div className="w-6 h-6 rounded-lg bg-gradient-to-tr from-[#18C6B0] to-indigo-500 flex items-center justify-center text-[#071126] shadow-sm">
+            <div className="w-6 h-6 rounded-lg bg-gradient-to-tr from-[#18C6B0] to-teal-400 flex items-center justify-center text-[#071126] shadow-sm font-bold">
               <Sparkles className="w-3.5 h-3.5 fill-current" />
             </div>
             <span className="text-xs font-semibold tracking-wider text-slate-200 uppercase">ECHO Core</span>
@@ -124,7 +121,7 @@ export default function Login({
             Welcome Back
           </h1>
           <p className="text-xs sm:text-sm text-slate-400 mt-1">
-            Continue where your team left off.
+            Knowledge-Risk Engine for Seamless Team Handovers
           </p>
         </div>
 
@@ -134,7 +131,7 @@ export default function Login({
           {error && (
             <div className="mb-5 p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs flex items-start gap-2.5 animate-fadeIn">
               <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-rose-400" />
-              <div className="flex-1 leading-relaxed">{error}</div>
+              <div className="flex-1 leading-relaxed font-medium">{error}</div>
             </div>
           )}
 
@@ -142,14 +139,14 @@ export default function Login({
           {oauthNotice && (
             <div className="mb-5 p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs flex items-start gap-2.5 animate-fadeIn">
               <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-amber-400" />
-              <div className="flex-1 leading-relaxed">{oauthNotice}</div>
+              <div className="flex-1 leading-relaxed font-medium">{oauthNotice}</div>
             </div>
           )}
 
           <form onSubmit={handleSubmit} className="space-y-4">
             {/* Email Field */}
             <div>
-              <label className="block text-xs font-medium text-slate-300 mb-1.5">
+              <label className="block text-xs font-semibold text-slate-300 mb-1.5">
                 Work Email Address
               </label>
               <div className="relative">
@@ -168,13 +165,13 @@ export default function Login({
             {/* Password Field */}
             <div>
               <div className="flex items-center justify-between mb-1.5">
-                <label className="text-xs font-medium text-slate-300">
+                <label className="text-xs font-semibold text-slate-300">
                   Password
                 </label>
                 <button
                   type="button"
                   onClick={onNavigateForgot}
-                  className="text-xs text-[#18C6B0] hover:text-[#18C6B0]/80 font-medium transition cursor-pointer"
+                  className="text-xs text-[#18C6B0] hover:text-[#0EB8A0] font-semibold transition cursor-pointer"
                 >
                   Forgot password?
                 </button>
@@ -218,7 +215,7 @@ export default function Login({
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-[#18C6B0] hover:bg-[#15b29e] text-[#071126] font-semibold rounded-xl py-2.5 px-4 text-sm shadow-lg shadow-[#18C6B0]/20 transition flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 mt-2"
+              className="w-full bg-[#18C6B0] hover:bg-[#0EB8A0] text-[#071126] font-bold rounded-xl py-2.5 px-4 text-sm shadow-lg shadow-[#18C6B0]/20 transition flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 mt-2"
             >
               {loading ? (
                 <>
@@ -228,7 +225,7 @@ export default function Login({
               ) : (
                 <>
                   <span>Sign In to ECHO</span>
-                  <ArrowRight className="w-4 h-4" />
+                  <ArrowRight className="w-4 h-4 stroke-[2.5]" />
                 </>
               )}
             </button>
@@ -240,7 +237,9 @@ export default function Login({
               <div className="w-full border-t border-[#1b345f]" />
             </div>
             <div className="relative flex justify-center text-xs uppercase">
-              <span className="bg-[#0b162c] px-2 text-slate-400 font-medium">Or continue with</span>
+              <span className="bg-[#0b162c] px-2 text-slate-400 font-semibold text-[10px] tracking-wider">
+                Or continue with
+              </span>
             </div>
           </div>
 
@@ -249,17 +248,21 @@ export default function Login({
             <button
               type="button"
               onClick={() => handleOAuthClick('GitHub')}
-              className="flex items-center justify-center gap-2 px-3 py-2 rounded-xl bg-[#081224] hover:bg-[#0e1c36] border border-[#1a345c] text-xs font-medium text-slate-300 transition cursor-pointer"
+              className="flex items-center justify-center gap-2 px-3 py-2 rounded-xl bg-[#081224] hover:bg-[#0e1c36] border border-[#1a345c] text-xs font-semibold text-slate-300 transition cursor-pointer"
             >
               <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24">
-                <path fillRule="evenodd" clipRule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.53 1.032 1.53 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z" />
+                <path
+                  fillRule="evenodd"
+                  clipRule="evenodd"
+                  d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.53 1.032 1.53 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"
+                />
               </svg>
               <span>GitHub</span>
             </button>
             <button
               type="button"
               onClick={() => handleOAuthClick('Google')}
-              className="flex items-center justify-center gap-2 px-3 py-2 rounded-xl bg-[#081224] hover:bg-[#0e1c36] border border-[#1a345c] text-xs font-medium text-slate-300 transition cursor-pointer"
+              className="flex items-center justify-center gap-2 px-3 py-2 rounded-xl bg-[#081224] hover:bg-[#0e1c36] border border-[#1a345c] text-xs font-semibold text-slate-300 transition cursor-pointer"
             >
               <svg className="w-4 h-4" viewBox="0 0 24 24">
                 <path
@@ -286,7 +289,7 @@ export default function Login({
           {/* Quick Demo Sign-in Section */}
           <div className="mt-6 pt-5 border-t border-[#1b345f]">
             <div className="flex items-center justify-between mb-2.5">
-              <span className="text-[11px] font-semibold tracking-wider uppercase text-slate-400 flex items-center gap-1.5">
+              <span className="text-[11px] font-bold tracking-wider uppercase text-slate-400 flex items-center gap-1.5">
                 <Users className="w-3.5 h-3.5 text-[#18C6B0]" />
                 <span>Quick Demo Accounts</span>
               </span>
@@ -299,13 +302,13 @@ export default function Login({
                   key={u.role}
                   type="button"
                   onClick={() => handleSelectDemoUser(u.email, u.pass)}
-                  className="p-2 rounded-lg bg-[#081224] hover:bg-[#0e1d38] border border-[#1b3560] hover:border-[#18C6B0]/50 transition text-left cursor-pointer flex flex-col group"
+                  className="p-2.5 rounded-xl bg-[#081224] hover:bg-[#0e1d38] border border-[#1b3560] hover:border-[#18C6B0]/50 transition text-left cursor-pointer flex flex-col group"
                 >
                   <div className="flex items-center justify-between">
-                    <span className="text-xs font-semibold text-slate-200 group-hover:text-[#18C6B0] transition">
+                    <span className="text-xs font-bold text-slate-200 group-hover:text-[#18C6B0] transition">
                       {u.role}
                     </span>
-                    <span className={`text-[9px] px-1 py-0.2 rounded border ${u.color}`}>
+                    <span className={`text-[9px] font-semibold px-1 py-0.2 rounded border ${u.color}`}>
                       {u.badge}
                     </span>
                   </div>
@@ -324,7 +327,7 @@ export default function Login({
           <button
             type="button"
             onClick={onNavigateSignup}
-            className="text-[#18C6B0] hover:underline font-semibold cursor-pointer"
+            className="text-[#18C6B0] hover:text-[#0EB8A0] hover:underline font-bold cursor-pointer"
           >
             Create an Account
           </button>

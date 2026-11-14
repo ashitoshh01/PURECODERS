@@ -307,7 +307,7 @@ export default function App() {
     return (
       <div className="min-h-screen bg-[#071126] text-slate-100 flex flex-col items-center justify-center p-4 selection:bg-[#18C6B0]/30 selection:text-white">
         <div className="flex flex-col items-center gap-4 animate-fadeIn">
-          <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-[#18C6B0] to-indigo-500 flex items-center justify-center text-[#071126] shadow-xl shadow-[#18C6B0]/20 animate-pulse">
+          <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-[#18C6B0] to-teal-400 flex items-center justify-center text-[#071126] shadow-xl shadow-[#18C6B0]/20 animate-pulse">
             <Sparkles className="w-6 h-6 fill-current" />
           </div>
           <div className="text-center">
@@ -415,7 +415,7 @@ export default function App() {
         />
       </div>
 
-      <div style={{ display: activeTab === 'ask' ? 'block' : 'none' }}>
+      <div className={activeTab === 'ask' ? 'flex-1 flex flex-col h-full w-full' : 'hidden'}>
         <AskEcho
           key={handoverKey}
           activeProject={activeProject}

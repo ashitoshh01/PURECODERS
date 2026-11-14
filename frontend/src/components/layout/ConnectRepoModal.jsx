@@ -12,15 +12,19 @@ import {
   Globe,
   RefreshCw,
   LogOut,
-  KeyRound
+  KeyRound,
 } from 'lucide-react';
 import { echoApi } from '../../api';
 
 // Canonical GitHub Logo Mark
-function GitHubMark({ className = "w-4 h-4" }) {
+function GitHubMark({ className = 'w-4 h-4' }) {
   return (
     <svg className={className} viewBox="0 0 24 24" fill="currentColor">
-      <path fillRule="evenodd" clipRule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.53 1.032 1.53 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z" />
+      <path
+        fillRule="evenodd"
+        clipRule="evenodd"
+        d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.53 1.032 1.53 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"
+      />
     </svg>
   );
 }
@@ -106,7 +110,7 @@ export default function ConnectRepoModal({ isOpen, onClose, onRepoScanned }) {
       .then((res) => {
         setBranches(res.branches || []);
       })
-      .catch((e) => {
+      .catch(() => {
         setBranches([{ name: selectedRepo.default_branch || 'main' }]);
       })
       .finally(() => setLoadingBranches(false));
@@ -199,7 +203,6 @@ export default function ConnectRepoModal({ isOpen, onClose, onRepoScanned }) {
       if (res.job_id) {
         pollJobStatus(res.job_id);
       } else {
-        // Synchronous fallback
         setSuccess('Repository ingested successfully!');
         setTimeout(() => {
           if (onRepoScanned) onRepoScanned('proj-live');
@@ -244,14 +247,20 @@ export default function ConnectRepoModal({ isOpen, onClose, onRepoScanned }) {
       <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl w-full max-w-lg overflow-hidden fade-in">
         {/* Header */}
         <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <GitHubMark className="w-5 h-5 text-slate-900" />
-            <h3 className="text-base font-semibold text-slate-900">Connect Repository</h3>
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-lg bg-slate-900 text-white flex items-center justify-center">
+              <GitHubMark className="w-4 h-4" />
+            </div>
+            <div>
+              <h3 className="text-sm sm:text-base font-bold text-slate-900">Connect Repository</h3>
+              <p className="text-[11px] text-slate-400">Ingest commits, diffs, and authorship data</p>
+            </div>
           </div>
           <button
             onClick={onClose}
             disabled={ingesting || scanningLocal}
-            className="p-1 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 disabled:opacity-50"
+            className="p-1 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 disabled:opacity-50 transition cursor-pointer"
+            aria-label="Close modal"
           >
             <X className="w-5 h-5" />
           </button>
@@ -261,9 +270,9 @@ export default function ConnectRepoModal({ isOpen, onClose, onRepoScanned }) {
         <div className="flex border-b border-slate-200 bg-slate-50/50 px-6 pt-2">
           <button
             onClick={() => setActiveSource('github')}
-            className={`pb-2.5 px-3 text-xs font-semibold flex items-center gap-2 border-b-2 transition ${
+            className={`pb-2.5 px-3 text-xs font-semibold flex items-center gap-2 border-b-2 transition cursor-pointer ${
               activeSource === 'github'
-                ? 'border-purple-600 text-purple-700'
+                ? 'border-[#18C6B0] text-teal-900'
                 : 'border-transparent text-slate-500 hover:text-slate-800'
             }`}
           >
@@ -272,9 +281,9 @@ export default function ConnectRepoModal({ isOpen, onClose, onRepoScanned }) {
           </button>
           <button
             onClick={() => setActiveSource('local')}
-            className={`pb-2.5 px-3 text-xs font-semibold flex items-center gap-2 border-b-2 transition ${
+            className={`pb-2.5 px-3 text-xs font-semibold flex items-center gap-2 border-b-2 transition cursor-pointer ${
               activeSource === 'local'
-                ? 'border-purple-600 text-purple-700'
+                ? 'border-[#18C6B0] text-teal-900'
                 : 'border-transparent text-slate-500 hover:text-slate-800'
             }`}
           >
@@ -286,16 +295,16 @@ export default function ConnectRepoModal({ isOpen, onClose, onRepoScanned }) {
         {/* Content Body */}
         <div className="p-6 space-y-4 text-xs text-slate-600 max-h-[75vh] overflow-y-auto">
           {error && (
-            <div className="p-3 rounded-lg bg-rose-50 border border-rose-200 text-rose-800 text-xs flex items-center gap-2">
+            <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs flex items-center gap-2">
               <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
-              <span className="flex-1">{error}</span>
+              <span className="flex-1 font-medium">{error}</span>
             </div>
           )}
 
           {success && (
-            <div className="p-3 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs flex items-center gap-2">
+            <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs flex items-center gap-2">
               <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-              <span>{success}</span>
+              <span className="font-semibold">{success}</span>
             </div>
           )}
 
@@ -304,16 +313,16 @@ export default function ConnectRepoModal({ isOpen, onClose, onRepoScanned }) {
             <div className="space-y-4">
               {loadingAuth ? (
                 <div className="p-8 text-center text-slate-400">
-                  <Loader2 className="w-6 h-6 animate-spin mx-auto mb-2 text-purple-600" />
+                  <Loader2 className="w-6 h-6 animate-spin mx-auto mb-2 text-[#0EB8A0]" />
                   <span>Checking GitHub connection...</span>
                 </div>
               ) : !authStatus?.authenticated ? (
                 /* Connect View */
                 <form onSubmit={handleConnect} className="space-y-3">
-                  <div className="p-3.5 rounded-xl border border-purple-100 bg-purple-50/60 text-purple-900 space-y-1">
-                    <span className="font-semibold block text-xs">Connect your GitHub Account</span>
-                    <p className="text-[11px] text-purple-700 leading-relaxed">
-                      Provide a Personal Access Token or fine-grained token with <code className="font-mono bg-purple-100 px-1 py-0.5 rounded">repo</code> (read-only) scope.
+                  <div className="p-3.5 rounded-xl border border-teal-100 bg-teal-50/60 text-teal-950 space-y-1">
+                    <span className="font-bold block text-xs">Connect your GitHub Account</span>
+                    <p className="text-[11px] text-teal-800 leading-relaxed">
+                      Provide a Personal Access Token or fine-grained token with <code className="font-mono bg-teal-100/80 px-1 py-0.5 rounded font-semibold">repo</code> (read-only) scope.
                       Echo uses this to inspect commits, diffs, and authorship without write access.
                     </p>
                   </div>
@@ -329,11 +338,11 @@ export default function ConnectRepoModal({ isOpen, onClose, onRepoScanned }) {
                         placeholder="ghp_... or github_pat_..."
                         value={tokenInput}
                         onChange={(e) => setTokenInput(e.target.value)}
-                        className="w-full pl-8 pr-3 py-2 rounded-lg border border-slate-200 bg-slate-50 text-xs text-slate-900 focus:outline-none focus:border-purple-500 focus:bg-white transition font-mono"
+                        className="w-full pl-8 pr-3 py-2 rounded-xl border border-slate-200 bg-slate-50 text-xs text-slate-900 focus:outline-none focus:border-[#18C6B0] focus:bg-white transition font-mono"
                       />
                     </div>
                     <span className="text-[11px] text-slate-400 mt-1 block">
-                      Credentials are stored securely in backend SQLite and never exposed to the browser.
+                      Credentials are stored securely in backend SQLite and never exposed to the client.
                     </span>
                   </div>
 
@@ -341,7 +350,7 @@ export default function ConnectRepoModal({ isOpen, onClose, onRepoScanned }) {
                     <button
                       type="submit"
                       disabled={connecting || !tokenInput.trim()}
-                      className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-medium text-white bg-slate-900 hover:bg-slate-800 disabled:opacity-50 rounded-lg shadow-xs transition"
+                      className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold text-white bg-slate-900 hover:bg-slate-800 disabled:opacity-50 rounded-xl shadow-xs transition cursor-pointer"
                     >
                       {connecting ? (
                         <>
@@ -387,7 +396,7 @@ export default function ConnectRepoModal({ isOpen, onClose, onRepoScanned }) {
                       type="button"
                       onClick={handleDisconnect}
                       disabled={disconnecting || ingesting}
-                      className="inline-flex items-center gap-1 px-2 py-1 rounded text-[11px] text-slate-500 hover:text-rose-600 hover:bg-rose-50 transition"
+                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-semibold text-slate-600 hover:text-rose-700 hover:bg-rose-50 transition cursor-pointer"
                       title="Disconnect GitHub account"
                     >
                       <LogOut className="w-3 h-3" />
@@ -405,7 +414,7 @@ export default function ConnectRepoModal({ isOpen, onClose, onRepoScanned }) {
                         type="button"
                         onClick={loadRepositories}
                         disabled={loadingRepos}
-                        className="text-[11px] text-purple-600 hover:text-purple-700 inline-flex items-center gap-1"
+                        className="text-[11px] text-teal-800 hover:text-teal-950 font-semibold inline-flex items-center gap-1 cursor-pointer"
                       >
                         <RefreshCw className={`w-2.5 h-2.5 ${loadingRepos ? 'animate-spin' : ''}`} />
                         <span>Refresh</span>
@@ -419,14 +428,14 @@ export default function ConnectRepoModal({ isOpen, onClose, onRepoScanned }) {
                         placeholder="Search your repositories..."
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
-                        className="w-full pl-8 pr-3 py-1.5 rounded-lg border border-slate-200 bg-white text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-purple-500 transition"
+                        className="w-full pl-8 pr-3 py-1.5 rounded-xl border border-slate-200 bg-white text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-[#18C6B0] transition"
                       />
                     </div>
 
-                    <div className="border border-slate-200 rounded-lg max-h-40 overflow-y-auto divide-y divide-slate-100 bg-white">
+                    <div className="border border-slate-200 rounded-xl max-h-40 overflow-y-auto divide-y divide-slate-100 bg-white">
                       {loadingRepos ? (
                         <div className="p-4 text-center text-slate-400">
-                          <Loader2 className="w-4 h-4 animate-spin mx-auto mb-1 text-purple-600" />
+                          <Loader2 className="w-4 h-4 animate-spin mx-auto mb-1 text-[#0EB8A0]" />
                           <span>Loading repositories...</span>
                         </div>
                       ) : filteredRepos.length === 0 ? (
@@ -441,8 +450,10 @@ export default function ConnectRepoModal({ isOpen, onClose, onRepoScanned }) {
                               key={repo.id}
                               type="button"
                               onClick={() => setSelectedRepo(repo)}
-                              className={`w-full text-left p-2.5 flex items-center justify-between text-xs transition ${
-                                isSel ? 'bg-purple-50/80 text-purple-900 font-medium' : 'hover:bg-slate-50 text-slate-700'
+                              className={`w-full text-left p-2.5 flex items-center justify-between text-xs transition cursor-pointer ${
+                                isSel
+                                  ? 'bg-teal-50 text-teal-900 font-semibold'
+                                  : 'hover:bg-slate-50 text-slate-700'
                               }`}
                             >
                               <div className="min-w-0 pr-2">
@@ -477,20 +488,18 @@ export default function ConnectRepoModal({ isOpen, onClose, onRepoScanned }) {
                         <label className="block text-xs font-semibold text-slate-700 mb-1">
                           Branch
                         </label>
-                        <div className="relative">
-                          <select
-                            value={selectedBranch}
-                            onChange={(e) => setSelectedBranch(e.target.value)}
-                            disabled={loadingBranches || ingesting}
-                            className="w-full px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white text-xs text-slate-900 focus:outline-none focus:border-purple-500 font-mono"
-                          >
-                            {branches.map((b) => (
-                              <option key={b.name} value={b.name}>
-                                {b.name}
-                              </option>
-                            ))}
-                          </select>
-                        </div>
+                        <select
+                          value={selectedBranch}
+                          onChange={(e) => setSelectedBranch(e.target.value)}
+                          disabled={loadingBranches || ingesting}
+                          className="w-full px-2.5 py-1.5 rounded-xl border border-slate-200 bg-white text-xs text-slate-900 focus:outline-none focus:border-[#18C6B0] font-mono cursor-pointer"
+                        >
+                          {branches.map((b) => (
+                            <option key={b.name} value={b.name}>
+                              {b.name}
+                            </option>
+                          ))}
+                        </select>
                       </div>
 
                       <div>
@@ -503,7 +512,7 @@ export default function ConnectRepoModal({ isOpen, onClose, onRepoScanned }) {
                           value={leaverName}
                           onChange={(e) => setLeaverName(e.target.value)}
                           disabled={ingesting}
-                          className="w-full px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-purple-500"
+                          className="w-full px-2.5 py-1.5 rounded-xl border border-slate-200 bg-white text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-[#18C6B0]"
                         />
                       </div>
                     </div>
@@ -511,17 +520,17 @@ export default function ConnectRepoModal({ isOpen, onClose, onRepoScanned }) {
 
                   {/* Ingestion Progress Bar */}
                   {ingesting && (
-                    <div className="p-3 rounded-xl bg-purple-50 border border-purple-200 space-y-2">
+                    <div className="p-3 rounded-xl bg-teal-50 border border-teal-200 space-y-2">
                       <div className="flex items-center justify-between text-xs">
-                        <span className="font-semibold text-purple-900 flex items-center gap-1.5">
-                          <Loader2 className="w-3.5 h-3.5 animate-spin text-purple-600" />
+                        <span className="font-semibold text-teal-900 flex items-center gap-1.5">
+                          <Loader2 className="w-3.5 h-3.5 animate-spin text-[#0EB8A0]" />
                           <span>{jobStep || 'Ingesting...'}</span>
                         </span>
-                        <span className="font-mono text-purple-700 font-bold">{jobProgress}%</span>
+                        <span className="font-mono text-teal-800 font-bold">{jobProgress}%</span>
                       </div>
-                      <div className="w-full bg-purple-200/60 rounded-full h-1.5 overflow-hidden">
+                      <div className="w-full bg-teal-200/60 rounded-full h-1.5 overflow-hidden">
                         <div
-                          className="bg-purple-600 h-1.5 rounded-full transition-all duration-300"
+                          className="bg-[#18C6B0] h-1.5 rounded-full transition-all duration-300"
                           style={{ width: `${jobProgress}%` }}
                         />
                       </div>
@@ -534,14 +543,14 @@ export default function ConnectRepoModal({ isOpen, onClose, onRepoScanned }) {
                       type="button"
                       onClick={onClose}
                       disabled={ingesting}
-                      className="px-3 py-1.5 text-xs text-slate-600 hover:text-slate-900 transition"
+                      className="px-3 py-1.5 text-xs text-slate-600 hover:text-slate-900 transition cursor-pointer"
                     >
                       Cancel
                     </button>
                     <button
                       type="submit"
                       disabled={ingesting || !selectedRepo}
-                      className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-medium text-white bg-purple-600 hover:bg-purple-700 disabled:opacity-50 rounded-lg shadow-xs transition"
+                      className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold text-[#071126] bg-[#18C6B0] hover:bg-[#0EB8A0] disabled:opacity-50 rounded-xl shadow-xs transition cursor-pointer"
                     >
                       {ingesting ? (
                         <>
@@ -565,7 +574,8 @@ export default function ConnectRepoModal({ isOpen, onClose, onRepoScanned }) {
           {activeSource === 'local' && (
             <form onSubmit={handleScanLocal} className="space-y-4">
               <p className="text-xs text-slate-500 leading-relaxed">
-                Echo scans any local Git repository path or subdirectory, extracts real commit authors from <code className="font-mono text-purple-700 bg-purple-50 px-1 py-0.5 rounded">git log</code>, reconstructs file ownership concentrations, and calculates auditable risk scores.
+                Echo scans any local Git repository path or subdirectory, extracts real commit authors from{' '}
+                <code className="font-mono text-teal-800 bg-teal-50 px-1 py-0.5 rounded font-semibold">git log</code>, reconstructs file ownership concentrations, and calculates auditable risk scores.
               </p>
 
               <div>
@@ -577,7 +587,7 @@ export default function ConnectRepoModal({ isOpen, onClose, onRepoScanned }) {
                   placeholder=". (current workspace) or /path/to/repo"
                   value={localPath}
                   onChange={(e) => setLocalPath(e.target.value)}
-                  className="w-full px-3 py-2 rounded-lg border border-slate-200 bg-slate-50 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-purple-500 focus:bg-white transition"
+                  className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-slate-50 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-[#18C6B0] focus:bg-white transition"
                 />
                 <span className="text-[11px] text-slate-400 mt-0.5 block">
                   Leave blank or &apos;.&apos; to scan the current ECHO workspace.
@@ -593,7 +603,7 @@ export default function ConnectRepoModal({ isOpen, onClose, onRepoScanned }) {
                   placeholder="Auto-detected from top code author if empty"
                   value={leaverName}
                   onChange={(e) => setLeaverName(e.target.value)}
-                  className="w-full px-3 py-2 rounded-lg border border-slate-200 bg-slate-50 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-purple-500 focus:bg-white transition"
+                  className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-slate-50 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-[#18C6B0] focus:bg-white transition"
                 />
               </div>
 
@@ -601,14 +611,14 @@ export default function ConnectRepoModal({ isOpen, onClose, onRepoScanned }) {
                 <button
                   type="button"
                   onClick={onClose}
-                  className="px-3 py-1.5 text-xs text-slate-600 hover:text-slate-900 transition"
+                  className="px-3 py-1.5 text-xs text-slate-600 hover:text-slate-900 transition cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={scanningLocal}
-                  className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-medium text-white bg-purple-600 hover:bg-purple-700 disabled:opacity-50 rounded-lg shadow-xs transition"
+                  className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold text-[#071126] bg-[#18C6B0] hover:bg-[#0EB8A0] disabled:opacity-50 rounded-xl shadow-xs transition cursor-pointer"
                 >
                   {scanningLocal ? (
                     <>

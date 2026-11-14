@@ -3,12 +3,6 @@ import {
   Mic,
   RotateCcw,
   Sparkles,
-  Filter,
-  CheckCircle2,
-  AlertCircle,
-  HelpCircle,
-  Clock,
-  Layers,
   RefreshCw,
 } from 'lucide-react';
 import PageHeader from '../common/PageHeader';
@@ -78,8 +72,8 @@ export default function ExitInterview({ onAnswerSubmitted, focusArtifactId, acti
         const el = document.getElementById(`question-${focusArtifactId}`);
         if (el) {
           el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-          el.classList.add('ring-2', 'ring-purple-500');
-          setTimeout(() => el.classList.remove('ring-2', 'ring-purple-500'), 2500);
+          el.classList.add('ring-2', 'ring-[#18C6B0]');
+          setTimeout(() => el.classList.remove('ring-2', 'ring-[#18C6B0]'), 2500);
         }
       }, 200);
     }
@@ -133,20 +127,20 @@ export default function ExitInterview({ onAnswerSubmitted, focusArtifactId, acti
       {/* Page Header */}
       <PageHeader
         title="Exit Interview Extraction"
-        subtitle={`Intelligent knowledge capture session with ${leaverName} (${data?.leaver?.role || 'Lead Engineer'})`}
+        subtitle={`Grounded knowledge capture and architectural decision transfer for ${leaverName}.`}
         badge="Evidence Grounded"
         actions={
           <button
             onClick={loadQuestionsAndAnswers}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-700 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition shadow-xs"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-700 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition shadow-2xs cursor-pointer"
           >
-            <RefreshCw className="w-3.5 h-3.5 text-slate-400" />
+            <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin text-[#0EB8A0]' : 'text-slate-400'}`} />
             <span>Reload Questions</span>
           </button>
         }
       />
 
-      {/* Progress & Timer Bar */}
+      {/* Progress & Countdown Timer Bar */}
       <InterviewProgress
         totalQuestions={totalQuestions}
         answeredCount={answeredCount}
@@ -155,7 +149,7 @@ export default function ExitInterview({ onAnswerSubmitted, focusArtifactId, acti
       />
 
       {/* Filter Tabs */}
-      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 pb-3">
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200/90 pb-3">
         <div className="flex items-center gap-1 overflow-x-auto pb-1 sm:pb-0">
           {[
             { id: 'all', label: 'All Questions' },
@@ -167,9 +161,9 @@ export default function ExitInterview({ onAnswerSubmitted, focusArtifactId, acti
             <button
               key={cat.id}
               onClick={() => setCategoryFilter(cat.id)}
-              className={`text-xs px-2.5 py-1 rounded-md font-medium transition shrink-0 ${
+              className={`text-xs px-2.5 py-1 rounded-lg font-semibold transition shrink-0 cursor-pointer ${
                 categoryFilter === cat.id
-                  ? 'bg-purple-50 text-purple-700 border border-purple-200'
+                  ? 'bg-teal-50 text-teal-800 border border-teal-200/90'
                   : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50 border border-transparent'
               }`}
             >
@@ -178,7 +172,7 @@ export default function ExitInterview({ onAnswerSubmitted, focusArtifactId, acti
           ))}
         </div>
 
-        <span className="text-xs text-slate-400">
+        <span className="text-xs text-slate-400 font-medium">
           Showing {filteredQuestions.length} of {totalQuestions} prioritized prompts
         </span>
       </div>

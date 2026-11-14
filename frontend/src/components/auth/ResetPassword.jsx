@@ -9,7 +9,7 @@ import {
   ArrowLeft,
   AlertCircle,
   CheckCircle2,
-  XCircle
+  XCircle,
 } from 'lucide-react';
 import { echoApi } from '../../api';
 
@@ -109,11 +109,11 @@ export default function ResetPassword({
       <div className="absolute bottom-[-10%] left-[-10%] w-[500px] h-[500px] bg-indigo-600/15 rounded-full blur-[140px] pointer-events-none" />
 
       {/* Main Container */}
-      <div className="w-full max-w-md relative z-10">
+      <div className="w-full max-w-md relative z-10 fade-in">
         {/* ECHO Branding & Header */}
         <div className="text-center mb-6">
           <div className="inline-flex items-center justify-center gap-2.5 px-3 py-1.5 rounded-full bg-[#0d1d3d] border border-[#1b345f] shadow-lg mb-3">
-            <div className="w-6 h-6 rounded-lg bg-gradient-to-tr from-[#18C6B0] to-indigo-500 flex items-center justify-center text-[#071126] shadow-sm">
+            <div className="w-6 h-6 rounded-lg bg-gradient-to-tr from-[#18C6B0] to-teal-400 flex items-center justify-center text-[#071126] shadow-sm font-bold">
               <Sparkles className="w-3.5 h-3.5 fill-current" />
             </div>
             <span className="text-xs font-semibold tracking-wider text-slate-200 uppercase">ECHO Security</span>
@@ -132,7 +132,7 @@ export default function ResetPassword({
           {error && (
             <div className="mb-5 p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs flex items-start gap-2.5 animate-fadeIn">
               <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-rose-400" />
-              <div className="flex-1 leading-relaxed">{error}</div>
+              <div className="flex-1 leading-relaxed font-medium">{error}</div>
             </div>
           )}
 
@@ -148,17 +148,17 @@ export default function ResetPassword({
               <button
                 type="button"
                 onClick={onNavigateLogin}
-                className="w-full mt-4 bg-[#18C6B0] hover:bg-[#15b29e] text-[#071126] font-semibold rounded-xl py-2.5 px-4 text-sm shadow-lg shadow-[#18C6B0]/20 transition flex items-center justify-center gap-2 cursor-pointer"
+                className="w-full mt-4 bg-[#18C6B0] hover:bg-[#0EB8A0] text-[#071126] font-bold rounded-xl py-2.5 px-4 text-sm shadow-lg shadow-[#18C6B0]/20 transition flex items-center justify-center gap-2 cursor-pointer"
               >
                 <span>Sign In with New Password</span>
-                <ArrowRight className="w-4 h-4" />
+                <ArrowRight className="w-4 h-4 stroke-[2.5]" />
               </button>
             </div>
           ) : (
             <form onSubmit={handleSubmit} className="space-y-4">
               {/* Reset Token */}
               <div>
-                <label className="block text-xs font-medium text-slate-300 mb-1.5">
+                <label className="block text-xs font-semibold text-slate-300 mb-1.5">
                   Reset Token
                 </label>
                 <div className="relative">
@@ -176,7 +176,7 @@ export default function ResetPassword({
 
               {/* New Password */}
               <div>
-                <label className="block text-xs font-medium text-slate-300 mb-1.5">
+                <label className="block text-xs font-semibold text-slate-300 mb-1.5">
                   New Password
                 </label>
                 <div className="relative">
@@ -203,8 +203,8 @@ export default function ResetPassword({
                 {newPassword && (
                   <div className="mt-2 space-y-1.5">
                     <div className="flex items-center justify-between text-[11px]">
-                      <span className="text-slate-400">Strength:</span>
-                      <span className={`font-semibold ${
+                      <span className="text-slate-400 font-medium">Strength:</span>
+                      <span className={`font-bold ${
                         strengthScore >= 3 ? 'text-[#18C6B0]' : strengthScore === 2 ? 'text-amber-400' : 'text-rose-400'
                       }`}>
                         {strengthLabel.text}
@@ -219,7 +219,7 @@ export default function ResetPassword({
 
               {/* Confirm Password */}
               <div>
-                <label className="block text-xs font-medium text-slate-300 mb-1.5">
+                <label className="block text-xs font-semibold text-slate-300 mb-1.5">
                   Confirm New Password
                 </label>
                 <div className="relative">
@@ -248,12 +248,12 @@ export default function ResetPassword({
                   </button>
                 </div>
                 {passwordsMatch === false && (
-                  <p className="text-[11px] text-rose-400 mt-1 flex items-center gap-1">
+                  <p className="text-[11px] text-rose-400 mt-1 flex items-center gap-1 font-medium">
                     <XCircle className="w-3 h-3" /> Passwords do not match
                   </p>
                 )}
                 {passwordsMatch === true && (
-                  <p className="text-[11px] text-[#18C6B0] mt-1 flex items-center gap-1">
+                  <p className="text-[11px] text-[#18C6B0] mt-1 flex items-center gap-1 font-medium">
                     <CheckCircle2 className="w-3 h-3" /> Passwords match
                   </p>
                 )}
@@ -263,7 +263,7 @@ export default function ResetPassword({
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full bg-[#18C6B0] hover:bg-[#15b29e] text-[#071126] font-semibold rounded-xl py-2.5 px-4 text-sm shadow-lg shadow-[#18C6B0]/20 transition flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 mt-2"
+                className="w-full bg-[#18C6B0] hover:bg-[#0EB8A0] text-[#071126] font-bold rounded-xl py-2.5 px-4 text-sm shadow-lg shadow-[#18C6B0]/20 transition flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 mt-2"
               >
                 {loading ? (
                   <>
@@ -273,7 +273,7 @@ export default function ResetPassword({
                 ) : (
                   <>
                     <span>Reset Password</span>
-                    <ArrowRight className="w-4 h-4" />
+                    <ArrowRight className="w-4 h-4 stroke-[2.5]" />
                   </>
                 )}
               </button>
@@ -281,7 +281,7 @@ export default function ResetPassword({
               <button
                 type="button"
                 onClick={onNavigateLogin}
-                className="w-full text-center text-xs text-slate-400 hover:text-slate-200 transition pt-2 flex items-center justify-center gap-1 cursor-pointer"
+                className="w-full text-center text-xs text-slate-400 hover:text-slate-200 transition pt-2 flex items-center justify-center gap-1 cursor-pointer font-medium"
               >
                 <ArrowLeft className="w-3.5 h-3.5" />
                 <span>Return to sign in</span>
@@ -293,4 +293,3 @@ export default function ResetPassword({
     </div>
   );
 }
-
