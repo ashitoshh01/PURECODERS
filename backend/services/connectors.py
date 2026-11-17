@@ -13,9 +13,17 @@ from database import get_db
 
 def get_connectors_status():
     conn = get_db()
-    cred_row = conn.execute("SELECT * FROM github_credentials WHERE id = 'default'").fetchone()
-    conn_rows = conn.execute("SELECT * FROM connectors").fetchall()
-    conn.close()
+    try:
+        cred_row = conn.execute("SELECT * FROM github_credentials WHERE id = 'default'").fetchone()
+        conn_rows = conn.execute("SELECT * FROM connectors").fetchall()
+        tables = [t[0] for t in conn.execute("SELECT name FROM sqlite_master WHERE type='table'").fetchall()]
+
+        slack_row = conn.execute("SELECT * FROM connector_credentials WHERE connector_type = 'slack' ORDER BY updated_at DESC LIMIT 1").fetchone() if 'connector_credentials' in tables else None
+        jira_row = conn.execute("SELECT * FROM connector_credentials WHERE connector_type = 'jira' ORDER BY updated_at DESC LIMIT 1").fetchone() if 'connector_credentials' in tables else None
+        slack_dict = dict(slack_row) if slack_row else None
+        jira_dict = dict(jira_row) if jira_row else None
+    finally:
+        conn.close()
 
     conn_map = {r["id"]: dict(r) for r in conn_rows}
     now = datetime.now(timezone.utc).isoformat()
@@ -65,24 +73,62 @@ def get_connectors_status():
 
     # 3. Slack
     slack_token = os.environ.get("SLACK_BOT_TOKEN") or os.environ.get("SLACK_USER_TOKEN")
+    saved_slack = conn_map.get("conn-slack")
+
+    if slack_dict:
+        slack_status = "connected"
+        slack_details = f"Connected to {slack_dict.get('workspace_name') or 'workspace'} via {slack_dict.get('auth_type', 'token').upper()}."
+        slack_last_sync = slack_dict.get("updated_at")
+    elif slack_token:
+        slack_status = "connected"
+        slack_details = "Authenticated via SLACK_BOT_TOKEN environment credential."
+        slack_last_sync = now
+    elif saved_slack and saved_slack.get("status") == "disconnected":
+        slack_status = "disconnected"
+        slack_details = saved_slack.get("details", "Disconnected by user.")
+        slack_last_sync = saved_slack.get("last_sync_at")
+    else:
+        slack_status = "not_configured"
+        slack_details = "Slack OAuth / API token not configured. Connect your workspace to ingest live discussion threads."
+        slack_last_sync = None
+
     results.append({
         "id": "conn-slack",
         "name": "Slack Workspace",
         "type": "slack",
-        "status": "connected" if slack_token else "not_configured",
-        "details": "Authenticated via Slack API" if slack_token else "Slack OAuth / API token not configured. (Using grounded demo threads for evaluation).",
-        "last_sync_at": now if slack_token else None
+        "status": slack_status,
+        "details": slack_details,
+        "last_sync_at": slack_last_sync
     })
 
     # 4. Jira
     jira_token = os.environ.get("JIRA_API_TOKEN") or os.environ.get("ATLASSIAN_API_TOKEN")
+    saved_jira = conn_map.get("conn-jira")
+
+    if jira_dict:
+        jira_status = "connected"
+        jira_details = f"Connected to {jira_dict.get('workspace_name') or 'Jira Cloud'} via {jira_dict.get('auth_type', 'token').upper()}."
+        jira_last_sync = jira_dict.get("updated_at")
+    elif jira_token:
+        jira_status = "connected"
+        jira_details = "Authenticated via JIRA_API_TOKEN environment credential."
+        jira_last_sync = now
+    elif saved_jira and saved_jira.get("status") == "disconnected":
+        jira_status = "disconnected"
+        jira_details = saved_jira.get("details", "Disconnected by user.")
+        jira_last_sync = saved_jira.get("last_sync_at")
+    else:
+        jira_status = "not_configured"
+        jira_details = "Atlassian Jira not configured. Connect your Jira instance to detect unassigned & critical issue gaps."
+        jira_last_sync = None
+
     results.append({
         "id": "conn-jira",
         "name": "Atlassian Jira",
         "type": "jira",
-        "status": "connected" if jira_token else "not_configured",
-        "details": "Authenticated via Atlassian API" if jira_token else "Jira API token not configured. (Using grounded demo tickets for evaluation).",
-        "last_sync_at": now if jira_token else None
+        "status": jira_status,
+        "details": jira_details,
+        "last_sync_at": jira_last_sync
     })
 
     # 5. Engineering Docs

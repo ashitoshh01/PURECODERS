@@ -183,6 +183,9 @@ def scan_git_repository(
         # Mark others inactive so live project is default active!
         conn.execute("UPDATE projects SET is_active = 0 WHERE id != ?", (project_id,))
 
+        # Scoped repository identifier for multi-repo workspace tracking
+        repo_id = f"repo-{resolved_repo_name.lower().replace(' ', '-').replace('/', '-')}"
+
         # Repository
         conn.execute("""
             INSERT OR REPLACE INTO repositories
@@ -190,12 +193,11 @@ def scan_git_repository(
              owner, repo_id_github, default_branch, description, is_private, html_url, size_kb)
             VALUES (?, ?, ?, ?, ?, ?, 'synced', ?, ?, ?, ?, ?, ?, ?, ?)
         """, (
-            f"repo-{project_id}", project_id, resolved_repo_name, resolved_remote_url, resolved_branch,
+            repo_id, project_id, resolved_repo_name, resolved_remote_url, resolved_branch,
             source_type, now, gh_owner, gh_id, gh_default_branch, gh_desc, gh_is_private, gh_html_url, gh_size_kb
         ))
 
-        # Team members
-        conn.execute("DELETE FROM team_members WHERE project_id = ?", (project_id,))
+        # Team members - preserve existing project members and add or update new repository authors
         for i, a in enumerate(authors[:5]):
             is_l = 1 if a["name"].lower() == primary_leaver.lower() else 0
             is_s = 1 if a["name"].lower() == successor_name.lower() and not is_l else (1 if i == 1 and not is_l else 0)
@@ -207,9 +209,9 @@ def scan_git_repository(
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?)
             """, (member_id, project_id, a["name"], f"{member_id}@example.com", role, is_l, is_s, is_m))
 
-        # Artifacts
-        conn.execute("DELETE FROM artifacts WHERE project_id = ?", (project_id,))
-        conn.execute("DELETE FROM contributions WHERE artifact_id IN (SELECT id FROM artifacts WHERE project_id = ?)", (project_id,))
+        # Multi-repo scoped cleanup: delete only artifacts and contributions for this repo
+        conn.execute("DELETE FROM contributions WHERE artifact_id IN (SELECT id FROM artifacts WHERE project_id = ? AND repo_id = ?)", (project_id, repo_id))
+        conn.execute("DELETE FROM artifacts WHERE project_id = ? AND repo_id = ?", (project_id, repo_id))
 
         scanned_count = 0
         for fpath in filtered_files:
@@ -254,13 +256,14 @@ def scan_git_repository(
                 except Exception:
                     pass
 
-            art_id = f"FILE-{scanned_count+1:02d}"
+            art_prefix = re.sub(r'[^A-Z0-9]', '', resolved_repo_name.upper())[:4] or "MOD"
+            art_id = f"{art_prefix}-{scanned_count+1:02d}"
             title = f"{fpath} — {atype}"
 
             conn.execute("""
                 INSERT INTO artifacts (id, project_id, repo_id, type, title, path, criticality, doc_coverage, days_since_touch, repo, is_planted_gap, created_at)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?)
-            """, (art_id, project_id, f"repo-{project_id}", atype, title, fpath, criticality, doc_coverage, days_since, resolved_repo_name, now))
+            """, (art_id, project_id, repo_id, atype, title, fpath, criticality, doc_coverage, days_since, resolved_repo_name, now))
 
             # Store contributions
             for author_name, commit_cnt in file_authors.items():

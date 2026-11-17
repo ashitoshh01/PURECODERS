@@ -12,11 +12,12 @@ def recency_weight(days: int) -> float:
     if days <= 90: return 0.4
     return 0.15
 
-def calculate_project_risk(project_id: str):
+def calculate_project_risk(project_id: str, repo_id: str = None):
     if not project_id:
         return {
             "leaver": None,
             "artifacts": [],
+            "repositories": [],
             "high_risk_count": 0,
             "bus_factor_violations": [],
             "gaps_detected": [],
@@ -26,6 +27,10 @@ def calculate_project_risk(project_id: str):
 
     conn = get_db()
     
+    # 0. Get repositories for project (Multi-repo workspace tracking)
+    repo_rows = conn.execute("SELECT id, name, branch, status, last_synced_at FROM repositories WHERE project_id = ?", (project_id,)).fetchall()
+    repositories = [dict(r) for r in repo_rows]
+
     # 1. Get leaver
     leaver_row = conn.execute(
         "SELECT * FROM team_members WHERE project_id = ? AND is_leaver = 1 LIMIT 1",
@@ -42,11 +47,17 @@ def calculate_project_risk(project_id: str):
     leaver = dict(leaver_row) if leaver_row else None
     leaver_id = leaver["id"] if leaver else None
 
-    # 2. Get artifacts
-    art_rows = conn.execute(
-        "SELECT * FROM artifacts WHERE project_id = ?",
-        (project_id,)
-    ).fetchall()
+    # 2. Get artifacts (scoped by repo_id if requested, else full project workspace)
+    if repo_id:
+        art_rows = conn.execute(
+            "SELECT * FROM artifacts WHERE project_id = ? AND repo_id = ?",
+            (project_id, repo_id)
+        ).fetchall()
+    else:
+        art_rows = conn.execute(
+            "SELECT * FROM artifacts WHERE project_id = ?",
+            (project_id,)
+        ).fetchall()
 
     # 3. Get contributions
     contrib_rows = conn.execute("""
@@ -114,6 +125,7 @@ def calculate_project_risk(project_id: str):
 
     return {
         "leaver": leaver,
+        "repositories": repositories,
         "artifacts": ranked,
         "high_risk_count": high_risk_count,
         "bus_factor_violations": bus_factor_violations,

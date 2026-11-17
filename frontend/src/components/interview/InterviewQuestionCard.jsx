@@ -1,10 +1,15 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   FileText,
   CheckCircle2,
   Edit3,
   Sparkles,
   Loader2,
+  Mic,
+  MicOff,
+  AlertTriangle,
+  Repeat,
+  Volume2,
 } from 'lucide-react';
 import { RiskBadge } from '../common/RiskBadge';
 
@@ -18,6 +23,8 @@ export default function InterviewQuestionCard({
 }) {
   const [answerText, setAnswerText] = useState(savedAnswer || '');
   const [isEditing, setIsEditing] = useState(false);
+  const [isRecording, setIsRecording] = useState(false);
+  const recognitionRef = useRef(null);
 
   const categoryLabels = {
     undocumented_single_owner: 'Undocumented & Single Owner',
@@ -27,11 +34,80 @@ export default function InterviewQuestionCard({
   };
 
   const textLower = (answerText || '').toLowerCase();
-  const hasDecisionSignal = ['because', 'we chose', 'so that', 'option'].some((k) =>
+  const hasDecisionSignal = ['because', 'we chose', 'we decided', 'so that', 'option', 'instead of', 'tradeoff'].some((k) =>
+    textLower.includes(k)
+  );
+  const hasLandmineSignal = ['fails silently', 'silent failure', 'be careful', 'danger', 'gotcha', 'landmine', 'crash', 'memory leak', 'timeout', 'deadlock', 'broke'].some((k) =>
+    textLower.includes(k)
+  );
+  const hasOpenLoopSignal = ['unfinished', 'half-done', 'still pending', 'need to migrate', 'open loop', 'todo', 'haven\'t finished', 'next step'].some((k) =>
     textLower.includes(k)
   );
 
+  // Initialize Speech Recognition
+  useEffect(() => {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (SpeechRecognition) {
+      const recognition = new SpeechRecognition();
+      recognition.continuous = true;
+      recognition.interimResults = true;
+      recognition.lang = 'en-US';
+
+      recognition.onresult = (event) => {
+        let transcript = '';
+        for (let i = 0; i < event.results.length; i++) {
+          transcript += event.results[i][0].transcript + ' ';
+        }
+        setAnswerText((prev) => {
+          const base = prev.endsWith(' ') || prev.length === 0 ? prev : prev + ' ';
+          return transcript.trim();
+        });
+      };
+
+      recognition.onerror = () => {
+        setIsRecording(false);
+      };
+
+      recognition.onend = () => {
+        setIsRecording(false);
+      };
+
+      recognitionRef.current = recognition;
+    }
+  }, []);
+
+  const toggleRecording = () => {
+    if (!recognitionRef.current) {
+      alert('Speech Recognition is not supported in this browser. Please use Google Chrome, Microsoft Edge, or Safari.');
+      return;
+    }
+
+    if (isRecording) {
+      try {
+        recognitionRef.current.stop();
+      } catch {
+        // ignore
+      }
+      setIsRecording(false);
+    } else {
+      try {
+        recognitionRef.current.start();
+        setIsRecording(true);
+      } catch (err) {
+        console.error('Speech recognition error:', err);
+      }
+    }
+  };
+
   const handleSave = () => {
+    if (isRecording && recognitionRef.current) {
+      try {
+        recognitionRef.current.stop();
+      } catch {
+        // ignore
+      }
+      setIsRecording(false);
+    }
     if (!answerText.trim() || saving) return;
     onSaveAnswer(question, answerText.trim());
     setIsEditing(false);
@@ -130,21 +206,88 @@ export default function InterviewQuestionCard({
                     handleSave();
                   }
                 }}
-                placeholder="Type your explanation... (e.g. 'we chose 7 because the vendor API rate-limited us')"
-                className="w-full rounded-xl border border-slate-200 bg-white p-3.5 text-xs sm:text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:border-[#18C6B0] focus:ring-1 focus:ring-[#18C6B0] transition leading-relaxed"
+                placeholder="Type your explanation or click the microphone to speak... (e.g. 'we chose 7 because the vendor API rate-limited us')"
+                className={`w-full rounded-xl border bg-white p-3.5 text-xs sm:text-sm text-slate-900 placeholder-slate-400 focus:outline-none transition leading-relaxed ${
+                  isRecording
+                    ? 'border-rose-400 ring-2 ring-rose-200'
+                    : 'border-slate-200 focus:border-[#18C6B0] focus:ring-1 focus:ring-[#18C6B0]'
+                }`}
               />
+
+              {/* Floating Voice Button */}
+              <button
+                type="button"
+                onClick={toggleRecording}
+                className={`absolute right-3 bottom-3 p-2 rounded-xl transition cursor-pointer flex items-center gap-1.5 text-xs font-semibold shadow-xs ${
+                  isRecording
+                    ? 'bg-rose-500 text-white animate-pulse'
+                    : 'bg-slate-100 hover:bg-teal-50 text-slate-600 hover:text-teal-700 border border-slate-200 hover:border-teal-300'
+                }`}
+                title={isRecording ? 'Stop recording' : 'Speak your answer (Voice exit interview)'}
+              >
+                {isRecording ? (
+                  <>
+                    <MicOff className="w-4 h-4" />
+                    <span>Listening...</span>
+                  </>
+                ) : (
+                  <>
+                    <Mic className="w-4 h-4 text-teal-600" />
+                    <span className="hidden sm:inline">Voice Answer</span>
+                  </>
+                )}
+              </button>
             </div>
 
-            {/* Real-time Decision Signal Banner */}
-            {hasDecisionSignal && (
-              <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-purple-50 border border-purple-200 text-purple-900 text-xs fade-in">
-                <Sparkles className="w-4 h-4 text-purple-600 shrink-0" />
-                <span className="font-bold">Potential architectural decision detected:</span>
-                <span className="text-purple-800">
-                  This will be automatically extracted into the successor Decision Log.
-                </span>
+            {/* Voice Active Telemetry Wave */}
+            {isRecording && (
+              <div className="flex items-center justify-between p-2.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-900 text-xs fade-in">
+                <div className="flex items-center gap-2">
+                  <div className="w-2.5 h-2.5 rounded-full bg-rose-500 animate-ping" />
+                  <span className="font-semibold">Echo Voice Recording Active:</span>
+                  <span className="text-rose-700">Speaking answers hands-free. Transcribing with structured extraction...</span>
+                </div>
+                <button
+                  onClick={toggleRecording}
+                  className="px-2 py-0.5 rounded bg-rose-200 hover:bg-rose-300 text-rose-900 font-bold text-[11px] cursor-pointer"
+                >
+                  Done Speaking
+                </button>
               </div>
             )}
+
+            {/* Real-time Extracted Signals Banners */}
+            <div className="space-y-1.5">
+              {hasDecisionSignal && (
+                <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-purple-50 border border-purple-200 text-purple-900 text-xs fade-in">
+                  <Sparkles className="w-3.5 h-3.5 text-purple-600 shrink-0" />
+                  <span className="font-bold">Architectural Decision Signal:</span>
+                  <span className="text-purple-800">
+                    Will be extracted into successor Decision Log with rationale &amp; tradeoffs.
+                  </span>
+                </div>
+              )}
+
+              {hasLandmineSignal && (
+                <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-900 text-xs fade-in">
+                  <AlertTriangle className="w-3.5 h-3.5 text-rose-600 shrink-0" />
+                  <span className="font-bold">Landmine &amp; Silent Gotcha Detected:</span>
+                  <span className="text-rose-800">
+                    Will be routed to reviewer approval queue to protect successor.
+                  </span>
+                </div>
+              )}
+
+              {hasOpenLoopSignal && (
+                <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-xs fade-in">
+                  <Repeat className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                  <span className="font-bold">Open Loop &amp; Pending Work:</span>
+                  <span className="text-amber-800">
+                    Will be logged into successor 30-day onboarding task list.
+                  </span>
+                </div>
+              )}
+            </div>
 
             {/* Actions Toolbar */}
             <div className="flex flex-wrap items-center justify-between gap-2 pt-1">

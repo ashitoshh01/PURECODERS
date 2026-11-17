@@ -95,6 +95,41 @@ export const echoApi = {
   checkHealth: () => api('/api/health'),
   getConnectors: () => api('/api/connectors'),
 
+  // Slack Live Connector
+  getSlackAuthUrl: (projectId = null, redirectUri = null) => {
+    const q = new URLSearchParams();
+    if (projectId) q.set('project_id', projectId);
+    if (redirectUri) q.set('redirect_uri', redirectUri);
+    return api(`/api/connectors/slack/authorize?${q.toString()}`);
+  },
+  connectSlackToken: (token, workspaceName = 'Slack Workspace', projectId = null) => api('/api/connectors/slack/connect-token', {
+    method: 'POST',
+    body: JSON.stringify({ token, workspace_name: workspaceName, project_id: projectId }),
+  }),
+  getSlackChannels: (projectId = null) => api(`/api/connectors/slack/channels${projectId ? `?project_id=${projectId}` : ''}`),
+  syncSlack: (projectId = null, channelIds = null) => api('/api/connectors/slack/sync', {
+    method: 'POST',
+    body: JSON.stringify({ project_id: projectId, channel_ids: channelIds }),
+  }),
+  disconnectSlack: (projectId = null) => api(`/api/connectors/slack/disconnect${projectId ? `?project_id=${projectId}` : ''}`, { method: 'POST' }),
+
+  // Jira Live Connector
+  getJiraAuthUrl: (projectId = null, redirectUri = null) => {
+    const q = new URLSearchParams();
+    if (projectId) q.set('project_id', projectId);
+    if (redirectUri) q.set('redirect_uri', redirectUri);
+    return api(`/api/connectors/jira/authorize?${q.toString()}`);
+  },
+  connectJiraToken: (domain, email, apiToken, projectId = null) => api('/api/connectors/jira/connect-token', {
+    method: 'POST',
+    body: JSON.stringify({ domain, email, api_token: apiToken, project_id: projectId }),
+  }),
+  syncJira: (projectId = null, jql = null) => api('/api/connectors/jira/sync', {
+    method: 'POST',
+    body: JSON.stringify({ project_id: projectId, jql }),
+  }),
+  disconnectJira: (projectId = null) => api(`/api/connectors/jira/disconnect${projectId ? `?project_id=${projectId}` : ''}`, { method: 'POST' }),
+
   // GitHub Integration
   getGitHubStatus: () => api('/api/github/status'),
   connectGitHub: (token, authType = 'token') => api('/api/github/connect', {
@@ -129,10 +164,44 @@ export const echoApi = {
   getRepositories: (projectId) => api(`/api/projects/${projectId}/repositories`),
   getTeamMembers: (projectId = null) => api(`/api/team-members${projectId ? `?project_id=${projectId}` : ''}`),
 
-  // Risk Map & Artifacts
-  getRiskMap: (projectId = null) => api(`/api/risk-map${projectId ? `?project_id=${projectId}` : ''}`),
+  // Risk Map & Artifacts (supports multi-repo workspace filtering)
+  getRiskMap: (projectId = null, repoId = null) => {
+    const q = new URLSearchParams();
+    if (projectId) q.set('project_id', projectId);
+    if (repoId) q.set('repo_id', repoId);
+    const qs = q.toString();
+    return api(`/api/risk-map${qs ? `?${qs}` : ''}`);
+  },
   getArtifacts: (projectId = null) => api(`/api/artifacts${projectId ? `?project_id=${projectId}` : ''}`),
   getArtifactDetails: (artifactId, projectId = null) => api(`/api/artifacts/${artifactId}${projectId ? `?project_id=${projectId}` : ''}`),
+
+  // Voice Interview & Structured Extraction
+  transcribeVoiceAnswer: (payload) => api('/api/interview/transcribe', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  }),
+  getReviewItems: (projectId = null) => api(`/api/review/items${projectId ? `?project_id=${projectId}` : ''}`),
+  approveReviewItem: (itemType, itemId, reviewerName = 'Reviewer') => api(`/api/review/items/${itemType}/${itemId}/approve`, {
+    method: 'POST',
+    body: JSON.stringify({ status: 'approved', reviewer_name: reviewerName }),
+  }),
+  rejectReviewItem: (itemType, itemId, reviewerName = 'Reviewer') => api(`/api/review/items/${itemType}/${itemId}/reject`, {
+    method: 'POST',
+    body: JSON.stringify({ status: 'rejected', reviewer_name: reviewerName }),
+  }),
+  updateReviewItem: (itemType, itemId, payload) => api(`/api/review/items/${itemType}/${itemId}`, {
+    method: 'PUT',
+    body: JSON.stringify(payload),
+  }),
+
+  // Continuous Monitoring & Knowledge Drift
+  rescanMonitoring: (projectId = null) => api('/api/monitoring/rescan', {
+    method: 'POST',
+    body: JSON.stringify({ project_id: projectId }),
+  }),
+  getDriftAlerts: (projectId = null, includeResolved = false) =>
+    api(`/api/monitoring/drift-alerts?include_resolved=${includeResolved}${projectId ? `&project_id=${projectId}` : ''}`),
+  resolveDriftAlert: (alertId) => api(`/api/monitoring/drift-alerts/${alertId}/resolve`, { method: 'POST' }),
 
   // Interview
   getInterviewQuestions: (limit = 6, projectId = null) =>

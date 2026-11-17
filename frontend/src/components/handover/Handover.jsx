@@ -16,6 +16,7 @@ import MetricCard from '../common/MetricCard';
 import HandoverTimeline from './HandoverTimeline';
 import LandmineCard from './LandmineCard';
 import DecisionLog from './DecisionLog';
+import ReviewerPortal from './ReviewerPortal';
 import { echoApi } from '../../api';
 
 export default function Handover({ active, onNavigateToInterview, activeProject, refreshKey }) {
@@ -184,6 +185,7 @@ export default function Handover({ active, onNavigateToInterview, activeProject,
       <div className="flex items-center gap-1 overflow-x-auto pb-1 border-b border-slate-200/90">
         {[
           { id: 'all', label: 'Complete Document' },
+          { id: 'review', label: '🛡️ Reviewer Sign-off' },
           { id: 'onboarding', label: '🗓 Onboarding Path' },
           { id: 'landmines', label: '💣 Critical Landmines' },
           { id: 'loops', label: '🔁 Open Loops' },
@@ -206,6 +208,14 @@ export default function Handover({ active, onNavigateToInterview, activeProject,
 
       {/* Handover Sections */}
       <div className="space-y-6">
+        {/* 0. Reviewer Sign-off Portal */}
+        {(activeSection === 'all' || activeSection === 'review') && (
+          <ReviewerPortal
+            projectId={activeProject?.id}
+            onItemsUpdated={loadHandover}
+          />
+        )}
+
         {/* 1. Onboarding Path */}
         {(activeSection === 'all' || activeSection === 'onboarding') && (
           <section className="bg-white rounded-xl border border-slate-200/90 p-5 shadow-xs">

@@ -6,6 +6,11 @@ import {
   BookOpen,
   CheckCircle2,
   ExternalLink,
+  MessageSquare,
+  Ticket,
+  Loader2,
+  RefreshCw,
+  PlusCircle,
 } from 'lucide-react';
 import { echoApi } from '../../api';
 
@@ -15,13 +20,30 @@ export function SettingsModal({ isOpen, onClose, onScanLiveGit }) {
   const [scanning, setScanning] = useState(false);
   const [scanMsg, setScanMsg] = useState(null);
 
+  // Slack Modal State
+  const [slackModalOpen, setSlackModalOpen] = useState(false);
+  const [slackToken, setSlackToken] = useState('');
+  const [slackWorkspaceName, setSlackWorkspaceName] = useState('Core Slack Workspace');
+  const [syncingSlack, setSyncingSlack] = useState(false);
+
+  // Jira Modal State
+  const [jiraModalOpen, setJiraModalOpen] = useState(false);
+  const [jiraDomain, setJiraDomain] = useState('company.atlassian.net');
+  const [jiraEmail, setJiraEmail] = useState('');
+  const [jiraApiToken, setJiraApiToken] = useState('');
+  const [syncingJira, setSyncingJira] = useState(false);
+
+  const refreshConnectors = () => {
+    setLoadingConn(true);
+    echoApi.getConnectors()
+      .then((res) => setConnectors(res.connectors || []))
+      .catch(() => setConnectors([]))
+      .finally(() => setLoadingConn(false));
+  };
+
   useEffect(() => {
     if (isOpen) {
-      setLoadingConn(true);
-      echoApi.getConnectors()
-        .then((res) => setConnectors(res.connectors || []))
-        .catch(() => setConnectors([]))
-        .finally(() => setLoadingConn(false));
+      refreshConnectors();
     }
   }, [isOpen]);
 
@@ -36,6 +58,94 @@ export function SettingsModal({ isOpen, onClose, onScanLiveGit }) {
       setScanMsg(`Scan failed: ${e.message}`);
     } finally {
       setScanning(false);
+    }
+  };
+
+  const handleConnectSlackToken = async (e) => {
+    e.preventDefault();
+    if (!slackToken.trim()) return;
+    setSyncingSlack(true);
+    try {
+      await echoApi.connectSlackToken(slackToken.trim(), slackWorkspaceName.trim());
+      const syncRes = await echoApi.syncSlack();
+      setScanMsg(`Connected to Slack and ingested ${syncRes.ingested_count} discussion threads!`);
+      setSlackModalOpen(false);
+      setSlackToken('');
+      refreshConnectors();
+      if (onScanLiveGit) onScanLiveGit();
+    } catch (err) {
+      setScanMsg(`Slack connection failed: ${err.message}`);
+    } finally {
+      setSyncingSlack(false);
+    }
+  };
+
+  const handleSyncSlack = async () => {
+    setSyncingSlack(true);
+    try {
+      const syncRes = await echoApi.syncSlack();
+      setScanMsg(`Slack sync complete: updated ${syncRes.ingested_count} discussion threads.`);
+      refreshConnectors();
+      if (onScanLiveGit) onScanLiveGit();
+    } catch (err) {
+      setScanMsg(`Slack sync failed: ${err.message}`);
+    } finally {
+      setSyncingSlack(false);
+    }
+  };
+
+  const handleDisconnectSlack = async () => {
+    try {
+      await echoApi.disconnectSlack();
+      setScanMsg('Slack workspace disconnected.');
+      refreshConnectors();
+      if (onScanLiveGit) onScanLiveGit();
+    } catch (err) {
+      setScanMsg(`Disconnect failed: ${err.message}`);
+    }
+  };
+
+  const handleConnectJiraToken = async (e) => {
+    e.preventDefault();
+    if (!jiraDomain.trim() || !jiraEmail.trim() || !jiraApiToken.trim()) return;
+    setSyncingJira(true);
+    try {
+      await echoApi.connectJiraToken(jiraDomain.trim(), jiraEmail.trim(), jiraApiToken.trim());
+      const syncRes = await echoApi.syncJira();
+      setScanMsg(`Connected to Jira and ingested ${syncRes.ingested_count} issue tickets!`);
+      setJiraModalOpen(false);
+      setJiraApiToken('');
+      refreshConnectors();
+      if (onScanLiveGit) onScanLiveGit();
+    } catch (err) {
+      setScanMsg(`Jira connection failed: ${err.message}`);
+    } finally {
+      setSyncingJira(false);
+    }
+  };
+
+  const handleSyncJira = async () => {
+    setSyncingJira(true);
+    try {
+      const syncRes = await echoApi.syncJira();
+      setScanMsg(`Jira sync complete: updated ${syncRes.ingested_count} issue tickets.`);
+      refreshConnectors();
+      if (onScanLiveGit) onScanLiveGit();
+    } catch (err) {
+      setScanMsg(`Jira sync failed: ${err.message}`);
+    } finally {
+      setSyncingJira(false);
+    }
+  };
+
+  const handleDisconnectJira = async () => {
+    try {
+      await echoApi.disconnectJira();
+      setScanMsg('Atlassian Jira disconnected.');
+      refreshConnectors();
+      if (onScanLiveGit) onScanLiveGit();
+    } catch (err) {
+      setScanMsg(`Disconnect failed: ${err.message}`);
     }
   };
 
@@ -126,6 +236,66 @@ export function SettingsModal({ isOpen, onClose, onScanLiveGit }) {
                         Disconnect
                       </button>
                     )}
+
+                    {c.type === 'slack' && (
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        {isConn ? (
+                          <>
+                            <button
+                              onClick={handleSyncSlack}
+                              disabled={syncingSlack}
+                              className="px-2.5 py-1.5 rounded-lg bg-teal-50 text-teal-800 border border-teal-200 text-xs font-semibold hover:bg-teal-100 transition cursor-pointer flex items-center gap-1"
+                            >
+                              <RefreshCw className={`w-3 h-3 ${syncingSlack ? 'animate-spin' : ''}`} />
+                              <span>Sync</span>
+                            </button>
+                            <button
+                              onClick={handleDisconnectSlack}
+                              className="px-2.5 py-1.5 rounded-lg bg-rose-50 text-rose-700 border border-rose-200 text-xs font-semibold hover:bg-rose-100 transition cursor-pointer"
+                            >
+                              Disconnect
+                            </button>
+                          </>
+                        ) : (
+                          <button
+                            onClick={() => setSlackModalOpen(true)}
+                            className="px-3 py-1.5 rounded-lg bg-teal-600 text-white text-xs font-semibold hover:bg-teal-700 transition cursor-pointer"
+                          >
+                            Connect Slack
+                          </button>
+                        )}
+                      </div>
+                    )}
+
+                    {c.type === 'jira' && (
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        {isConn ? (
+                          <>
+                            <button
+                              onClick={handleSyncJira}
+                              disabled={syncingJira}
+                              className="px-2.5 py-1.5 rounded-lg bg-teal-50 text-teal-800 border border-teal-200 text-xs font-semibold hover:bg-teal-100 transition cursor-pointer flex items-center gap-1"
+                            >
+                              <RefreshCw className={`w-3 h-3 ${syncingJira ? 'animate-spin' : ''}`} />
+                              <span>Sync</span>
+                            </button>
+                            <button
+                              onClick={handleDisconnectJira}
+                              className="px-2.5 py-1.5 rounded-lg bg-rose-50 text-rose-700 border border-rose-200 text-xs font-semibold hover:bg-rose-100 transition cursor-pointer"
+                            >
+                              Disconnect
+                            </button>
+                          </>
+                        ) : (
+                          <button
+                            onClick={() => setJiraModalOpen(true)}
+                            className="px-3 py-1.5 rounded-lg bg-teal-600 text-white text-xs font-semibold hover:bg-teal-700 transition cursor-pointer"
+                          >
+                            Connect Jira
+                          </button>
+                        )}
+                      </div>
+                    )}
                   </div>
                 );
               })}
@@ -184,6 +354,151 @@ export function SettingsModal({ isOpen, onClose, onScanLiveGit }) {
           </button>
         </div>
       </div>
+
+      {/* Connect Slack Dialog */}
+      {slackModalOpen && (
+        <div className="fixed inset-0 z-60 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl w-full max-w-md p-6 fade-in space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <div className="flex items-center gap-2">
+                <MessageSquare className="w-5 h-5 text-teal-600" />
+                <h3 className="font-bold text-slate-900 text-sm">Connect Slack Workspace</h3>
+              </div>
+              <button
+                onClick={() => setSlackModalOpen(false)}
+                className="p-1 rounded-lg text-slate-400 hover:text-slate-600 cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleConnectSlackToken} className="space-y-3.5 text-xs">
+              <div>
+                <label className="block font-semibold text-slate-700 mb-1">Workspace Name</label>
+                <input
+                  type="text"
+                  value={slackWorkspaceName}
+                  onChange={(e) => setSlackWorkspaceName(e.target.value)}
+                  placeholder="e.g. Core Engineering Slack"
+                  className="w-full px-3 py-2 rounded-xl border border-slate-200 focus:outline-none focus:border-teal-500"
+                />
+              </div>
+
+              <div>
+                <label className="block font-semibold text-slate-700 mb-1">Slack Bot or User Token (xoxb / xoxp)</label>
+                <input
+                  type="password"
+                  value={slackToken}
+                  onChange={(e) => setSlackToken(e.target.value)}
+                  placeholder="xoxb-..."
+                  required
+                  className="w-full px-3 py-2 rounded-xl border border-slate-200 focus:outline-none focus:border-teal-500 font-mono"
+                />
+                <p className="text-[11px] text-slate-400 mt-1">
+                  Scopes: channels:history, channels:read, users:read. Threads are ingested without storing user passwords.
+                </p>
+              </div>
+
+              <div className="pt-2 flex items-center justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setSlackModalOpen(false)}
+                  className="px-3.5 py-1.5 text-slate-600 hover:text-slate-900 font-semibold cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={syncingSlack || !slackToken.trim()}
+                  className="px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white font-semibold rounded-xl disabled:opacity-50 flex items-center gap-1.5 cursor-pointer"
+                >
+                  {syncingSlack ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : null}
+                  <span>Connect &amp; Ingest Threads</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Connect Jira Dialog */}
+      {jiraModalOpen && (
+        <div className="fixed inset-0 z-60 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl w-full max-w-md p-6 fade-in space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <div className="flex items-center gap-2">
+                <Ticket className="w-5 h-5 text-teal-600" />
+                <h3 className="font-bold text-slate-900 text-sm">Connect Atlassian Jira</h3>
+              </div>
+              <button
+                onClick={() => setJiraModalOpen(false)}
+                className="p-1 rounded-lg text-slate-400 hover:text-slate-600 cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleConnectJiraToken} className="space-y-3 text-xs">
+              <div>
+                <label className="block font-semibold text-slate-700 mb-1">Atlassian Domain</label>
+                <input
+                  type="text"
+                  value={jiraDomain}
+                  onChange={(e) => setJiraDomain(e.target.value)}
+                  placeholder="your-company.atlassian.net"
+                  required
+                  className="w-full px-3 py-2 rounded-xl border border-slate-200 focus:outline-none focus:border-teal-500 font-mono"
+                />
+              </div>
+
+              <div>
+                <label className="block font-semibold text-slate-700 mb-1">Atlassian Account Email</label>
+                <input
+                  type="email"
+                  value={jiraEmail}
+                  onChange={(e) => setJiraEmail(e.target.value)}
+                  placeholder="engineer@company.com"
+                  required
+                  className="w-full px-3 py-2 rounded-xl border border-slate-200 focus:outline-none focus:border-teal-500"
+                />
+              </div>
+
+              <div>
+                <label className="block font-semibold text-slate-700 mb-1">Jira API Token</label>
+                <input
+                  type="password"
+                  value={jiraApiToken}
+                  onChange={(e) => setJiraApiToken(e.target.value)}
+                  placeholder="Atlassian API token..."
+                  required
+                  className="w-full px-3 py-2 rounded-xl border border-slate-200 focus:outline-none focus:border-teal-500 font-mono"
+                />
+                <p className="text-[11px] text-slate-400 mt-1">
+                  Generated in Atlassian Account Settings &gt; Security &gt; Create API token.
+                </p>
+              </div>
+
+              <div className="pt-2 flex items-center justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setJiraModalOpen(false)}
+                  className="px-3.5 py-1.5 text-slate-600 hover:text-slate-900 font-semibold cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={syncingJira || !jiraApiToken.trim()}
+                  className="px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white font-semibold rounded-xl disabled:opacity-50 flex items-center gap-1.5 cursor-pointer"
+                >
+                  {syncingJira ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : null}
+                  <span>Connect &amp; Ingest Tickets</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -33,17 +33,24 @@ export default function RiskMap({ onNavigateToInterview, activeProject, refreshK
   const [selectedArtifact, setSelectedArtifact] = useState(null);
   const [formulaModalOpen, setFormulaModalOpen] = useState(false);
 
-  const loadData = async () => {
+  // Multi-repo and continuous monitoring state
+  const [selectedRepoId, setSelectedRepoId] = useState('');
+  const [driftAlerts, setDriftAlerts] = useState([]);
+  const [rescanning, setRescanning] = useState(false);
+
+  const loadData = async (repoOverride = selectedRepoId) => {
     setLoading(true);
     setErr(null);
     try {
       const pId = activeProject?.id;
-      const [riskRes, artRes] = await Promise.all([
-        echoApi.getRiskMap(pId),
+      const [riskRes, artRes, driftRes] = await Promise.all([
+        echoApi.getRiskMap(pId, repoOverride || null),
         echoApi.getArtifacts(pId).catch(() => ({ artifacts: [], edges: [] })),
+        echoApi.getDriftAlerts(pId).catch(() => ({ alerts: [] })),
       ]);
       setData(riskRes);
       setGraphData(artRes);
+      setDriftAlerts(driftRes.alerts || []);
     } catch (e) {
       setErr(e.message);
     } finally {
@@ -53,7 +60,28 @@ export default function RiskMap({ onNavigateToInterview, activeProject, refreshK
 
   useEffect(() => {
     loadData();
-  }, [activeProject?.id, refreshKey]);
+  }, [activeProject?.id, refreshKey, selectedRepoId]);
+
+  const handleRescan = async () => {
+    setRescanning(true);
+    try {
+      await echoApi.rescanMonitoring(activeProject?.id);
+      await loadData();
+    } catch (e) {
+      alert(`Monitoring re-scan failed: ${e.message}`);
+    } finally {
+      setRescanning(false);
+    }
+  };
+
+  const handleResolveAlert = async (alertId) => {
+    try {
+      await echoApi.resolveDriftAlert(alertId);
+      setDriftAlerts((prev) => prev.filter((a) => a.id !== alertId));
+    } catch (e) {
+      alert(`Failed to resolve alert: ${e.message}`);
+    }
+  };
 
   // Derive distribution statistics from actual backend artifacts
   const stats = useMemo(() => {
@@ -125,13 +153,43 @@ export default function RiskMap({ onNavigateToInterview, activeProject, refreshK
 
   return (
     <div className="space-y-6 fade-in">
-      {/* Page Header (Clean, concise, with discreet formula trigger) */}
+      {/* Page Header (Clean, concise, with multi-repo filter and continuous monitoring controls) */}
       <PageHeader
         title="Knowledge Risk Map"
         subtitle={`Knowledge concentration and single-owner hotspots for ${leaverName}.`}
         badge={activeProject?.mode === 'live' ? 'Live Git Scanned' : 'Deterministic Benchmark'}
         actions={
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            {/* Multi-Repository Workspace Dropdown */}
+            {(data?.repositories || []).length > 0 && (
+              <div className="flex items-center gap-1.5 bg-white border border-slate-200 rounded-lg px-2.5 py-1 text-xs shadow-2xs">
+                <span className="text-[11px] font-semibold text-slate-400">Repo:</span>
+                <select
+                  value={selectedRepoId}
+                  onChange={(e) => setSelectedRepoId(e.target.value)}
+                  className="bg-transparent font-bold text-slate-800 focus:outline-none cursor-pointer text-xs"
+                >
+                  <option value="">All Repositories ({data.repositories.length})</option>
+                  {data.repositories.map((r) => (
+                    <option key={r.id} value={r.id}>
+                      {r.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            {/* Continuous Monitoring: Re-scan Commits */}
+            <button
+              onClick={handleRescan}
+              disabled={rescanning}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-teal-800 bg-teal-50 border border-teal-200 rounded-lg hover:bg-teal-100 transition shadow-2xs cursor-pointer disabled:opacity-50"
+              title="Continuous Monitoring: Re-scan repositories for new commits and detect knowledge drift"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${rescanning ? 'animate-spin text-teal-600' : 'text-teal-700'}`} />
+              <span>{rescanning ? 'Scanning Commits...' : 'Re-scan Commits'}</span>
+            </button>
+
             <button
               onClick={() => setFormulaModalOpen(true)}
               className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-700 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition shadow-2xs cursor-pointer"
@@ -142,7 +200,7 @@ export default function RiskMap({ onNavigateToInterview, activeProject, refreshK
             </button>
 
             <button
-              onClick={loadData}
+              onClick={() => loadData()}
               className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-700 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition shadow-2xs cursor-pointer"
             >
               <RefreshCw
@@ -153,6 +211,56 @@ export default function RiskMap({ onNavigateToInterview, activeProject, refreshK
           </div>
         }
       />
+
+      {/* Continuous Monitoring: Knowledge Drift Alerts Banner */}
+      {driftAlerts.length > 0 && (
+        <div className="bg-gradient-to-r from-amber-50 to-rose-50 border border-amber-200/90 rounded-2xl p-4 shadow-xs space-y-3 fade-in">
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2 text-xs font-bold text-amber-950">
+              <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
+              <span>Continuous Monitoring: Knowledge Drift Detected ({driftAlerts.length} Active Alerts)</span>
+            </div>
+            <span className="text-[11px] font-semibold text-amber-800 bg-amber-100 px-2 py-0.5 rounded-full border border-amber-200">
+              Pre-notice Warning
+            </span>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
+            {driftAlerts.map((alert) => (
+              <div
+                key={alert.id}
+                className="bg-white/90 p-3 rounded-xl border border-amber-200/80 text-xs flex items-start justify-between gap-3 shadow-2xs"
+              >
+                <div>
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="font-mono text-[10px] font-bold px-1.5 py-0.2 rounded bg-slate-100 text-slate-700">
+                      {alert.artifact_id}
+                    </span>
+                    <span
+                      className={`text-[10px] font-bold px-2 py-0.2 rounded-full uppercase ${
+                        alert.severity === 'critical'
+                          ? 'bg-rose-100 text-rose-800 border border-rose-200'
+                          : 'bg-amber-100 text-amber-800 border border-amber-200'
+                      }`}
+                    >
+                      {alert.alert_type === 'stale_knowledge' ? 'Stale Code Drift' : 'Concentration Spike'}
+                    </span>
+                  </div>
+                  <p className="text-slate-700 text-xs leading-relaxed">{alert.message}</p>
+                </div>
+
+                <button
+                  onClick={() => handleResolveAlert(alert.id)}
+                  className="px-2.5 py-1 text-[11px] font-semibold text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded-lg transition shrink-0 cursor-pointer"
+                  title="Acknowledge and dismiss drift alert"
+                >
+                  Acknowledge
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* 4 Metric KPI Cards (Standalone numerals & consistent badge placement) */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">

@@ -284,6 +284,78 @@ def init_db():
             FOREIGN KEY(project_id) REFERENCES projects(id) ON DELETE CASCADE,
             UNIQUE(user_id, project_id)
         );
+
+        CREATE TABLE IF NOT EXISTS connector_credentials (
+            id TEXT PRIMARY KEY,
+            connector_type TEXT NOT NULL, -- 'slack', 'jira', 'github'
+            project_id TEXT,
+            auth_type TEXT NOT NULL,      -- 'oauth', 'token'
+            access_token TEXT NOT NULL,
+            refresh_token TEXT,
+            token_expires_at TEXT,
+            scope TEXT,
+            workspace_id TEXT,
+            workspace_name TEXT,
+            account_email TEXT,
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL
+        );
+
+        CREATE TABLE IF NOT EXISTS connector_sync_targets (
+            id TEXT PRIMARY KEY,
+            connector_type TEXT NOT NULL, -- 'slack', 'jira'
+            project_id TEXT NOT NULL,
+            target_id TEXT NOT NULL,      -- Slack channel ID or Jira project key
+            target_name TEXT NOT NULL,
+            sync_enabled INTEGER DEFAULT 1,
+            last_synced_at TEXT,
+            FOREIGN KEY(project_id) REFERENCES projects(id) ON DELETE CASCADE
+        );
+
+        CREATE TABLE IF NOT EXISTS landmines (
+            id TEXT PRIMARY KEY,
+            project_id TEXT NOT NULL,
+            artifact_id TEXT NOT NULL,
+            title TEXT NOT NULL,
+            description TEXT NOT NULL,
+            symptom TEXT,
+            how_to_recover TEXT,
+            extracted_from_answer_id INTEGER,
+            review_status TEXT DEFAULT 'pending_review', -- 'pending_review', 'approved', 'rejected'
+            reviewed_by TEXT,
+            reviewed_at TEXT,
+            created_at TEXT NOT NULL,
+            FOREIGN KEY(project_id) REFERENCES projects(id) ON DELETE CASCADE,
+            FOREIGN KEY(artifact_id) REFERENCES artifacts(id) ON DELETE CASCADE
+        );
+
+        CREATE TABLE IF NOT EXISTS risk_snapshots (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            project_id TEXT NOT NULL,
+            repo_id TEXT,
+            snapshot_date TEXT NOT NULL,
+            high_risk_count INTEGER NOT NULL,
+            bus_factor_violations_count INTEGER NOT NULL,
+            avg_risk_score REAL NOT NULL,
+            created_at TEXT NOT NULL,
+            FOREIGN KEY(project_id) REFERENCES projects(id) ON DELETE CASCADE
+        );
+
+        CREATE TABLE IF NOT EXISTS knowledge_drift_alerts (
+            id TEXT PRIMARY KEY,
+            project_id TEXT NOT NULL,
+            repo_id TEXT,
+            artifact_id TEXT NOT NULL,
+            alert_type TEXT NOT NULL, -- 'stale_knowledge', 'newly_concentrated', 'bus_factor_jump'
+            severity TEXT NOT NULL,   -- 'critical', 'warning', 'info'
+            message TEXT NOT NULL,
+            previous_value REAL,
+            current_value REAL,
+            is_resolved INTEGER DEFAULT 0,
+            created_at TEXT NOT NULL,
+            FOREIGN KEY(project_id) REFERENCES projects(id) ON DELETE CASCADE,
+            FOREIGN KEY(artifact_id) REFERENCES artifacts(id) ON DELETE CASCADE
+        );
         """)
 
         # Migration: ensure newly added columns exist in older SQLite databases
@@ -310,6 +382,39 @@ def init_db():
             if col not in chat_cols:
                 conn.execute(f"ALTER TABLE chat_messages ADD COLUMN {col} {col_type};")
 
+        # Decisions migration: rejected_alternatives, review_status, reviewed_by, reviewed_at
+        decision_cols = [r["name"] for r in conn.execute("PRAGMA table_info(decisions)").fetchall()]
+        needed_decision_cols = {
+            "rejected_alternatives": "TEXT",
+            "review_status": "TEXT DEFAULT 'pending_review'",
+            "reviewed_by": "TEXT",
+            "reviewed_at": "TEXT"
+        }
+        for col, col_type in needed_decision_cols.items():
+            if col not in decision_cols:
+                conn.execute(f"ALTER TABLE decisions ADD COLUMN {col} {col_type};")
+
+        # Open Loops migration: description, review_status, reviewed_by, reviewed_at
+        loop_cols = [r["name"] for r in conn.execute("PRAGMA table_info(open_loops)").fetchall()]
+        needed_loop_cols = {
+            "description": "TEXT",
+            "review_status": "TEXT DEFAULT 'pending_review'",
+            "reviewed_by": "TEXT",
+            "reviewed_at": "TEXT"
+        }
+        for col, col_type in needed_loop_cols.items():
+            if col not in loop_cols:
+                conn.execute(f"ALTER TABLE open_loops ADD COLUMN {col} {col_type};")
+
+        # Artifacts migration: source_connector
+        artifact_cols = [r["name"] for r in conn.execute("PRAGMA table_info(artifacts)").fetchall()]
+        needed_artifact_cols = {
+            "source_connector": "TEXT"
+        }
+        for col, col_type in needed_artifact_cols.items():
+            if col not in artifact_cols:
+                conn.execute(f"ALTER TABLE artifacts ADD COLUMN {col} {col_type};")
+
     conn.close()
 
 def get_active_project():
@@ -329,6 +434,10 @@ def reset_database(clear_credentials: bool = False, clear_users: bool = False):
     """
     conn = get_db()
     cleared_tables = [
+        "knowledge_drift_alerts",
+        "risk_snapshots",
+        "landmines",
+        "connector_sync_targets",
         "chat_messages",
         "who_to_ask",
         "open_loops",
@@ -348,7 +457,7 @@ def reset_database(clear_credentials: bool = False, clear_users: bool = False):
         "connectors",
     ]
     if clear_credentials:
-        cleared_tables.append("github_credentials")
+        cleared_tables.extend(["github_credentials", "connector_credentials"])
     if clear_users:
         cleared_tables = ["password_reset_tokens", "user_sessions", "workspace_memberships", "users"] + cleared_tables
 

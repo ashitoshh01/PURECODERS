@@ -33,6 +33,10 @@ from services.asi_service import (
     update_asi_env,
 )
 from services import auth_service
+from services import slack_service
+from services import jira_service
+from services import voice_service
+from services import monitor_service
 
 app = FastAPI(title="Echo — Knowledge-Risk Engine", version="0.3.0")
 
@@ -129,6 +133,7 @@ class ProjectSelectIn(BaseModel):
 class GitScanIn(BaseModel):
     repo_path: Optional[str] = None
     leaver_name: Optional[str] = None
+    project_id: Optional[str] = None
 
 class GitHubConnectIn(BaseModel):
     token: str = Field(..., description="GitHub Personal Access Token, OAuth token, or App token")
@@ -160,6 +165,40 @@ class AiConfigIn(BaseModel):
 
 class ApproveHandoverIn(BaseModel):
     approved_by: Optional[str] = "Neha (Engineering Manager)"
+    project_id: Optional[str] = None
+
+class SlackTokenConnectIn(BaseModel):
+    token: str = Field(..., description="Slack Bot or User Token")
+    workspace_name: Optional[str] = "Slack Workspace"
+    project_id: Optional[str] = None
+
+class SlackSyncIn(BaseModel):
+    project_id: Optional[str] = None
+    channel_ids: Optional[List[str]] = None
+
+class JiraTokenConnectIn(BaseModel):
+    domain: str = Field(..., description="Atlassian domain e.g. company.atlassian.net")
+    email: str = Field(..., description="Atlassian account email")
+    api_token: str = Field(..., description="Atlassian API token")
+    project_id: Optional[str] = None
+
+class JiraSyncIn(BaseModel):
+    project_id: Optional[str] = None
+    jql: Optional[str] = None
+
+class VoiceTranscribeIn(BaseModel):
+    question_id: str
+    artifact_id: str
+    transcript: str
+    submitted_by: Optional[str] = None
+    project_id: Optional[str] = None
+
+class ReviewItemUpdateIn(BaseModel):
+    status: str = Field(..., description="'approved', 'rejected', or 'pending_review'")
+    reviewer_name: Optional[str] = "Reviewer"
+    edited_data: Optional[Dict[str, Any]] = None
+
+class MonitoringRescanIn(BaseModel):
     project_id: Optional[str] = None
 
 # ----------------------------------------------------------------------------
@@ -461,16 +500,76 @@ def select_project(payload: ProjectSelectIn):
 
 @app.post("/api/projects/scan-git")
 def scan_git(payload: GitScanIn):
+    p_id = payload.project_id or "proj-live"
     try:
         res = scan_git_repository(
             repo_path=payload.repo_path,
-            project_id="proj-live",
+            project_id=p_id,
             leaver_name=payload.leaver_name
         )
-        sync_project_questions("proj-live")
+        sync_project_questions(p_id)
         return res
     except Exception as e:
         raise HTTPException(400, f"Git scan failed: {str(e)}")
+
+@app.delete("/api/projects/{project_id}")
+def delete_project(project_id: str):
+    """
+    Permanently deletes a specific project and all its associated data:
+    repositories, commits, team members, artifacts, knowledge gaps,
+    interview questions/answers, handover packages, and chat history.
+    If the deleted project was active, another existing project is automatically activated.
+    """
+    conn = get_db()
+    proj = conn.execute("SELECT * FROM projects WHERE id = ?", (project_id,)).fetchone()
+    if not proj:
+        conn.close()
+        raise HTTPException(status.HTTP_404_NOT_FOUND, f"Project '{project_id}' not found")
+
+    proj_name = proj["name"]
+    was_active = bool(proj["is_active"])
+
+    with conn:
+        # Explicit clean-up in foreign key order to prevent orphaned rows
+        conn.execute("DELETE FROM ingestion_jobs WHERE project_id = ?", (project_id,))
+        conn.execute("DELETE FROM chat_messages WHERE project_id = ?", (project_id,))
+        conn.execute("DELETE FROM who_to_ask WHERE package_id IN (SELECT id FROM handover_packages WHERE project_id = ?)", (project_id,))
+        conn.execute("DELETE FROM open_loops WHERE package_id IN (SELECT id FROM handover_packages WHERE project_id = ?)", (project_id,))
+        conn.execute("DELETE FROM onboarding_tasks WHERE package_id IN (SELECT id FROM handover_packages WHERE project_id = ?)", (project_id,))
+        conn.execute("DELETE FROM handover_packages WHERE project_id = ?", (project_id,))
+        conn.execute("DELETE FROM decisions WHERE project_id = ?", (project_id,))
+        conn.execute("DELETE FROM interview_answers WHERE question_id IN (SELECT id FROM interview_questions WHERE project_id = ?)", (project_id,))
+        conn.execute("DELETE FROM interview_questions WHERE project_id = ?", (project_id,))
+        conn.execute("DELETE FROM graph_edges WHERE project_id = ?", (project_id,))
+        conn.execute("DELETE FROM contributions WHERE artifact_id IN (SELECT id FROM artifacts WHERE project_id = ?)", (project_id,))
+        conn.execute("DELETE FROM artifacts WHERE project_id = ?", (project_id,))
+        conn.execute("DELETE FROM commits WHERE project_id = ?", (project_id,))
+        conn.execute("DELETE FROM team_members WHERE project_id = ?", (project_id,))
+        conn.execute("DELETE FROM repositories WHERE project_id = ?", (project_id,))
+        conn.execute("DELETE FROM workspace_memberships WHERE project_id = ?", (project_id,))
+        conn.execute("DELETE FROM projects WHERE id = ?", (project_id,))
+
+        next_active_id = None
+        if was_active:
+            other = conn.execute("SELECT id FROM projects ORDER BY created_at ASC LIMIT 1").fetchone()
+            if other:
+                next_active_id = other["id"]
+                conn.execute("UPDATE projects SET is_active = 1 WHERE id = ?", (next_active_id,))
+
+    conn.close()
+
+    if next_active_id:
+        try:
+            sync_project_questions(next_active_id)
+        except Exception:
+            pass
+
+    return {
+        "status": "deleted",
+        "deleted_project_id": project_id,
+        "deleted_project_name": proj_name,
+        "active_project": get_active_project()
+    }
 
 @app.get("/api/projects/{project_id}/repositories")
 def get_project_repositories(project_id: str):
@@ -703,9 +802,9 @@ def get_ingestion_job_status(job_id: str):
 # RISK MAP & ARTIFACTS
 # ----------------------------------------------------------------------------
 @app.get("/api/risk-map")
-def get_risk_map(project_id: Optional[str] = None):
+def get_risk_map(project_id: Optional[str] = None, repo_id: Optional[str] = None):
     p_id = project_id or (get_active_project() or {}).get("id")
-    return calculate_project_risk(p_id)
+    return calculate_project_risk(p_id, repo_id=repo_id)
 
 @app.get("/api/artifacts")
 def get_artifacts(project_id: Optional[str] = None):
@@ -831,23 +930,30 @@ def submit_interview_answer(payload: AnswerIn):
             """, (payload.question_id, payload.artifact_id, q_row["evidence"], q_row["question"], payload.answer.strip(), leaver_name, now))
             answer_id = cur.lastrowid
 
-        # Real decision extraction
-        text = payload.answer.lower()
-        decision_logged = False
-        if any(marker in text for marker in ["because", "we chose", "so that", "option", "instead of", "tradeoff"]):
-            conn.execute("""
-                INSERT OR REPLACE INTO decisions (project_id, artifact_id, decision, rationale, extracted_from_answer_id, created_at)
-                VALUES (?, ?, ?, ?, ?, ?)
-            """, (project_id, payload.artifact_id, q_row["question"], payload.answer.strip(), answer_id, now))
-            decision_logged = True
-
         total_ans = conn.execute("SELECT COUNT(*) as c FROM interview_answers a JOIN interview_questions q ON a.question_id = q.id WHERE q.project_id = ?", (project_id,)).fetchone()["c"]
 
     conn.close()
+
+    # Real structured knowledge extraction: Decisions, Landmines, and Open Loops
+    extracted = voice_service.extract_structured_knowledge(
+        transcript=payload.answer.strip(),
+        question_text=q_row["question"],
+        artifact_id=payload.artifact_id,
+        project_id=project_id,
+        submitted_by=leaver_name,
+        answer_id=answer_id
+    )
+    decision_logged = len(extracted.get("decisions", [])) > 0
+    landmine_logged = len(extracted.get("landmines", [])) > 0
+    open_loop_logged = len(extracted.get("open_loops", [])) > 0
+
     return {
         "status": "stored",
         "linked_to": payload.artifact_id,
         "decision_logged": decision_logged,
+        "landmine_logged": landmine_logged,
+        "open_loop_logged": open_loop_logged,
+        "extracted": extracted,
         "answers_total": total_ans
     }
 
@@ -866,6 +972,93 @@ def get_interview_answers(project_id: Optional[str] = None):
     """, (p_id,)).fetchall()
     conn.close()
     return {"answers": [dict(r) for r in rows], "total": len(rows)}
+
+# ----------------------------------------------------------------------------
+# VOICE INTERVIEWS & REVIEWER PORTAL
+# ----------------------------------------------------------------------------
+@app.post("/api/interview/transcribe")
+def transcribe_and_extract_voice_answer(payload: VoiceTranscribeIn):
+    """
+    Receives voice interview transcript, persists the answer linked to question,
+    and runs NLP structured extraction to capture Decisions, Landmines, and Open Loops.
+    """
+    p_id = payload.project_id or (get_active_project() or {}).get("id")
+    if not p_id:
+        raise HTTPException(400, "No active project")
+
+    conn = get_db()
+    q_row = conn.execute("SELECT * FROM interview_questions WHERE id = ?", (payload.question_id,)).fetchone()
+    if not q_row:
+        conn.close()
+        raise HTTPException(404, f"Question {payload.question_id} not found")
+
+    now = datetime.now(timezone.utc).isoformat()
+    leaver_name = payload.submitted_by
+    if not leaver_name:
+        l_row = conn.execute("SELECT name FROM team_members WHERE project_id = ? AND is_leaver = 1", (p_id,)).fetchone()
+        leaver_name = l_row["name"] if l_row else "Leaver"
+
+    with conn:
+        existing = conn.execute("SELECT id FROM interview_answers WHERE question_id = ?", (payload.question_id,)).fetchone()
+        if existing:
+            conn.execute("""
+                UPDATE interview_answers
+                SET answer = ?, submitted_at = ?, submitted_by = ?
+                WHERE id = ?
+            """, (payload.transcript.strip(), now, leaver_name, existing["id"]))
+            answer_id = existing["id"]
+        else:
+            cur = conn.execute("""
+                INSERT INTO interview_answers (question_id, artifact_id, evidence, question, answer, submitted_by, submitted_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+            """, (payload.question_id, payload.artifact_id, q_row["evidence"], q_row["question"], payload.transcript.strip(), leaver_name, now))
+            answer_id = cur.lastrowid
+
+    conn.close()
+
+    extracted = voice_service.extract_structured_knowledge(
+        transcript=payload.transcript.strip(),
+        question_text=q_row["question"],
+        artifact_id=payload.artifact_id,
+        project_id=p_id,
+        submitted_by=leaver_name,
+        answer_id=answer_id
+    )
+
+    return {
+        "status": "transcribed_and_extracted",
+        "question_id": payload.question_id,
+        "artifact_id": payload.artifact_id,
+        "transcript": payload.transcript,
+        "extracted": extracted
+    }
+
+@app.get("/api/review/items")
+def get_reviewer_items(project_id: Optional[str] = None):
+    p_id = project_id or (get_active_project() or {}).get("id")
+    if not p_id:
+        return {"decisions": [], "landmines": [], "open_loops": [], "pending_count": 0}
+    return voice_service.get_review_items(p_id)
+
+@app.post("/api/review/items/{item_type}/{item_id}/approve")
+def approve_reviewer_item(item_type: str, item_id: str, payload: Optional[ReviewItemUpdateIn] = None):
+    reviewer = (payload.reviewer_name if payload else None) or "Engineering Reviewer"
+    return voice_service.update_review_status(item_type, item_id, "approved", reviewer)
+
+@app.post("/api/review/items/{item_type}/{item_id}/reject")
+def reject_reviewer_item(item_type: str, item_id: str, payload: Optional[ReviewItemUpdateIn] = None):
+    reviewer = (payload.reviewer_name if payload else None) or "Engineering Reviewer"
+    return voice_service.update_review_status(item_type, item_id, "rejected", reviewer)
+
+@app.put("/api/review/items/{item_type}/{item_id}")
+def update_reviewer_item(item_type: str, item_id: str, payload: ReviewItemUpdateIn):
+    return voice_service.update_review_status(
+        item_type=item_type,
+        item_id=item_id,
+        new_status=payload.status,
+        reviewer_name=payload.reviewer_name or "Engineering Reviewer",
+        edited_data=payload.edited_data
+    )
 
 # ----------------------------------------------------------------------------
 # HANDOVER PACKAGE
@@ -922,6 +1115,9 @@ def get_handover_package(project_id: Optional[str] = None):
     # Decisions
     dec_rows = conn.execute("SELECT * FROM decisions WHERE project_id = ? ORDER BY created_at DESC", (p_id,)).fetchall()
 
+    # Dedicated Landmines from voice/interview extraction
+    extracted_landmine_rows = conn.execute("SELECT * FROM landmines WHERE project_id = ? ORDER BY created_at DESC", (p_id,)).fetchall()
+
     # Answers map for landmines
     ans_rows = conn.execute("""
         SELECT a.artifact_id, a.answer
@@ -947,6 +1143,21 @@ def get_handover_package(project_id: Optional[str] = None):
         }
         for i, r in enumerate(top_risks)
     ]
+
+    # Append any specific extracted landmines
+    for el in extracted_landmine_rows:
+        el_dict = dict(el)
+        landmines.append({
+            "rank": len(landmines) + 1,
+            "artifact_id": el_dict["artifact_id"],
+            "title": el_dict["title"],
+            "risk_pct": 85.0,
+            "captured": el_dict["description"],
+            "symptom": el_dict.get("symptom"),
+            "how_to_recover": el_dict.get("how_to_recover"),
+            "review_status": el_dict.get("review_status", "pending_review"),
+            "is_dedicated": True
+        })
 
     return {
         "package_id": pkg_id,
@@ -1106,6 +1317,130 @@ async def ask_echo_endpoint(payload: AskIn):
 
     conn.close()
     return result
+
+# ----------------------------------------------------------------------------
+# SLACK & JIRA LIVE CONNECTORS
+# ----------------------------------------------------------------------------
+@app.get("/api/connectors/slack/authorize")
+def slack_authorize(project_id: Optional[str] = None, redirect_uri: str = Query("http://localhost:8000/api/connectors/slack/callback")):
+    p_id = project_id or (get_active_project() or {}).get("id") or "proj-live"
+    return {"url": slack_service.get_slack_auth_url(p_id, redirect_uri)}
+
+@app.get("/api/connectors/slack/callback")
+def slack_callback(code: str, state: Optional[str] = None, redirect_uri: str = Query("http://localhost:8000/api/connectors/slack/callback")):
+    p_id = "proj-live"
+    if state:
+        try:
+            s_obj = json.loads(state)
+            p_id = s_obj.get("project_id", p_id)
+        except Exception:
+            pass
+    res = slack_service.exchange_slack_code(code, redirect_uri, p_id)
+    return JSONResponse(content={"status": "connected", "details": res})
+
+@app.post("/api/connectors/slack/connect-token")
+def connect_slack_token(payload: SlackTokenConnectIn):
+    p_id = payload.project_id or (get_active_project() or {}).get("id") or "proj-live"
+    return slack_service.save_slack_credentials(
+        project_id=p_id,
+        access_token=payload.token,
+        auth_type="token",
+        workspace_name=payload.workspace_name
+    )
+
+@app.get("/api/connectors/slack/channels")
+def get_slack_channels(project_id: Optional[str] = None):
+    p_id = project_id or (get_active_project() or {}).get("id")
+    return {"channels": slack_service.list_slack_channels(p_id)}
+
+@app.post("/api/connectors/slack/sync")
+def sync_slack(payload: SlackSyncIn):
+    p_id = payload.project_id or (get_active_project() or {}).get("id") or "proj-live"
+    return slack_service.sync_slack_workspace(p_id, payload.channel_ids)
+
+@app.post("/api/connectors/slack/disconnect")
+def disconnect_slack_endpoint(project_id: Optional[str] = None):
+    p_id = project_id or (get_active_project() or {}).get("id")
+    return slack_service.disconnect_slack(p_id)
+
+@app.get("/api/connectors/jira/authorize")
+def jira_authorize(project_id: Optional[str] = None, redirect_uri: str = Query("http://localhost:8000/api/connectors/jira/callback")):
+    p_id = project_id or (get_active_project() or {}).get("id") or "proj-live"
+    return {"url": jira_service.get_jira_auth_url(p_id, redirect_uri)}
+
+@app.get("/api/connectors/jira/callback")
+def jira_callback(code: str, state: Optional[str] = None, redirect_uri: str = Query("http://localhost:8000/api/connectors/jira/callback")):
+    p_id = "proj-live"
+    if state:
+        try:
+            s_obj = json.loads(state)
+            p_id = s_obj.get("project_id", p_id)
+        except Exception:
+            pass
+    res = jira_service.exchange_jira_code(code, redirect_uri, p_id)
+    return JSONResponse(content={"status": "connected", "details": res})
+
+@app.post("/api/connectors/jira/connect-token")
+def connect_jira_token(payload: JiraTokenConnectIn):
+    p_id = payload.project_id or (get_active_project() or {}).get("id") or "proj-live"
+    return jira_service.connect_jira_api_token(
+        domain=payload.domain,
+        email=payload.email,
+        api_token=payload.api_token,
+        project_id=p_id
+    )
+
+@app.post("/api/connectors/jira/sync")
+def sync_jira(payload: JiraSyncIn):
+    p_id = payload.project_id or (get_active_project() or {}).get("id") or "proj-live"
+    return jira_service.sync_jira_workspace(p_id, payload.jql)
+
+@app.post("/api/connectors/jira/disconnect")
+def disconnect_jira_endpoint(project_id: Optional[str] = None):
+    p_id = project_id or (get_active_project() or {}).get("id")
+    return jira_service.disconnect_jira(p_id)
+
+# ----------------------------------------------------------------------------
+# CONTINUOUS MONITORING & MULTI-REPO WORKSPACES
+# ----------------------------------------------------------------------------
+@app.get("/api/projects/{project_id}/repositories")
+def get_project_repositories(project_id: str):
+    conn = get_db()
+    rows = conn.execute("SELECT * FROM repositories WHERE project_id = ? ORDER BY last_synced_at DESC", (project_id,)).fetchall()
+    conn.close()
+    return {"repositories": [dict(r) for r in rows]}
+
+@app.post("/api/webhooks/github/{project_id}")
+async def github_push_webhook(project_id: str, request: Request):
+    try:
+        payload = await request.json()
+    except Exception:
+        payload = {}
+    return monitor_service.process_github_push_webhook(project_id, payload)
+
+@app.post("/api/monitoring/rescan")
+def monitoring_rescan(payload: MonitoringRescanIn):
+    p_id = payload.project_id or (get_active_project() or {}).get("id") or DEMO_PROJECT_ID
+    alerts = monitor_service.detect_knowledge_drift(p_id)
+    return {
+        "status": "rescan_complete",
+        "project_id": p_id,
+        "new_drift_alerts": alerts,
+        "drift_alerts_count": len(alerts)
+    }
+
+@app.get("/api/monitoring/drift-alerts")
+def get_monitoring_drift_alerts(project_id: Optional[str] = None, include_resolved: bool = False):
+    p_id = project_id or (get_active_project() or {}).get("id")
+    if not p_id:
+        return {"alerts": [], "count": 0}
+    alerts = monitor_service.get_drift_alerts(p_id, include_resolved=include_resolved)
+    return {"alerts": alerts, "count": len(alerts)}
+
+@app.post("/api/monitoring/drift-alerts/{alert_id}/resolve")
+def resolve_monitoring_drift_alert(alert_id: str):
+    monitor_service.resolve_drift_alert(alert_id)
+    return {"status": "resolved", "alert_id": alert_id}
 
 # ----------------------------------------------------------------------------
 # CONNECTORS & RESET
