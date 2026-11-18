@@ -13,15 +13,34 @@ from database import get_db
 
 def get_connectors_status():
     conn = get_db()
+    cred_row = None
+    conn_rows = []
+    slack_dict = None
+    jira_dict = None
     try:
-        cred_row = conn.execute("SELECT * FROM github_credentials WHERE id = 'default'").fetchone()
-        conn_rows = conn.execute("SELECT * FROM connectors").fetchall()
         tables = [t[0] for t in conn.execute("SELECT name FROM sqlite_master WHERE type='table'").fetchall()]
+        if 'github_credentials' in tables:
+            cred_row = conn.execute("SELECT * FROM github_credentials WHERE id = 'default'").fetchone()
+        if 'connectors' in tables:
+            conn_rows = conn.execute("SELECT * FROM connectors").fetchall()
 
-        slack_row = conn.execute("SELECT * FROM connector_credentials WHERE connector_type = 'slack' ORDER BY updated_at DESC LIMIT 1").fetchone() if 'connector_credentials' in tables else None
-        jira_row = conn.execute("SELECT * FROM connector_credentials WHERE connector_type = 'jira' ORDER BY updated_at DESC LIMIT 1").fetchone() if 'connector_credentials' in tables else None
-        slack_dict = dict(slack_row) if slack_row else None
-        jira_dict = dict(jira_row) if jira_row else None
+        if 'connector_credentials' in tables:
+            cols = [c[1] for c in conn.execute("PRAGMA table_info(connector_credentials)").fetchall()]
+            order_by = "ORDER BY updated_at DESC" if "updated_at" in cols else "ORDER BY rowid DESC"
+            try:
+                slack_row = conn.execute(f"SELECT * FROM connector_credentials WHERE connector_type = 'slack' {order_by} LIMIT 1").fetchone()
+                if slack_row:
+                    slack_dict = dict(slack_row)
+            except Exception:
+                pass
+            try:
+                jira_row = conn.execute(f"SELECT * FROM connector_credentials WHERE connector_type = 'jira' {order_by} LIMIT 1").fetchone()
+                if jira_row:
+                    jira_dict = dict(jira_row)
+            except Exception:
+                pass
+    except Exception:
+        pass
     finally:
         conn.close()
 

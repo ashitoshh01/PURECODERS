@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Menu, LogOut } from 'lucide-react';
+import echoIcon from '../../assets/echo-icon.png';
 
 export default function Topbar({
   activeTab,
@@ -66,11 +67,11 @@ export default function Topbar({
 
   return (
     <header className="h-16 bg-white/95 backdrop-blur-xs border-b border-slate-200/90 sticky top-0 z-30 px-4 sm:px-6 flex items-center justify-between">
-      {/* Left: Mobile/Desktop toggle hamburger + Clean Title */}
+      {/* Left: Mobile/Desktop toggle hamburger + Echo Logo when sidebar is closed */}
       <div className="flex items-center gap-3 min-w-0">
         <button
           onClick={onToggleSidebar || onOpenMobile}
-          className={`p-1.5 rounded-lg text-slate-500 hover:text-slate-800 hover:bg-slate-100 cursor-pointer ${
+          className={`p-1.5 rounded-lg text-slate-500 hover:text-slate-800 hover:bg-slate-100 cursor-pointer transition ${
             desktopSidebarOpen ? 'lg:hidden' : 'flex'
           }`}
           aria-label="Open navigation sidebar"
@@ -79,11 +80,21 @@ export default function Topbar({
           <Menu className="w-5 h-5" />
         </button>
 
-        {/* View / Page Title */}
-        <div className="flex items-center gap-2 min-w-0">
-          <span className="text-base font-bold text-slate-900 tracking-tight truncate">
-            {pageTitles[activeTab] || 'Overview'}
-          </span>
+        {/* When sidebar is closed on desktop or on mobile, show the Echo brand logo at the title place */}
+        <div className={`items-center gap-2.5 min-w-0 ${desktopSidebarOpen ? 'flex lg:hidden' : 'flex'}`}>
+          <div className="w-8 h-8 rounded-lg bg-white border border-slate-200/80 p-0.5 flex items-center justify-center shrink-0 shadow-2xs">
+            <img
+              src={echoIcon}
+              alt="Echo Logo"
+              className="w-full h-full object-contain"
+            />
+          </div>
+          <div className="flex items-center gap-1.5 min-w-0">
+            <span className="font-bold text-slate-900 tracking-tight text-base leading-none">Echo</span>
+            <span className="text-[10px] font-semibold px-1.5 py-0.2 rounded-md border bg-teal-50 text-teal-800 border-teal-200 hidden sm:inline-block">
+              Knowledge-Risk Engine
+            </span>
+          </div>
         </div>
       </div>
 

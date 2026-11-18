@@ -16,6 +16,86 @@ import ArtifactDetailDrawer from './ArtifactDetailDrawer';
 import { RiskBadge, BusFactorBadge } from '../common/RiskBadge';
 import { echoApi } from '../../api';
 
+const METRIC_EXPLANATIONS = {
+  high_risk: {
+    title: 'High Risk Exposure',
+    badge: '≥30% Score Threshold',
+    badgeColor: 'bg-rose-50 text-rose-700 border-rose-200',
+    currentMetric: (data, stats) => `${data?.high_risk_count ?? 0} Critical Artifacts`,
+    whatIsIt:
+      'High Risk Exposure measures the number of mission-critical repository modules, pull requests, and chat discussions that have high single-owner dependency, high architectural importance, and deficient documentation.',
+    formula:
+      'Risk Score = Ownership Concentration × System Criticality × (1 - Doc Coverage) × Recency Weight',
+    howCalculated: [
+      'Ownership Concentration (0.0 - 1.0): Ratio of commits and file touches authored by the departing engineer versus the entire team.',
+      'Criticality (1.0 - 5.0 scaled): Calculated from dependency imports, centrality in the call graph, and infrastructure impact.',
+      'Documentation Gap (0.0 - 1.0): 1.0 minus the observed doc coverage (analyzing READMEs, inline docstrings, and runbooks).',
+      'Recency Weight (0.15 - 1.0): Temporal decay multiplier giving highest urgency to code modified in the last 7 to 30 days.'
+    ],
+    thresholds:
+      'Artifacts scoring ≥ 30% are flagged as high risk. Any artifact scoring ≥ 50% is elevated to Critical priority for immediate exit interview capture.',
+    whyItMatters:
+      'Without structured handover, these modules represent immediate single points of failure when the primary engineer departs.'
+  },
+  single_ownership: {
+    title: 'Single Ownership (Bus Factor = 1)',
+    badge: 'Concentration Warning',
+    badgeColor: 'bg-amber-50 text-amber-800 border-amber-200',
+    currentMetric: (data, stats) => `${data?.bus_factor_violations?.length ?? 0} Hotspots`,
+    whatIsIt:
+      'Single Ownership identifies critical codebase hotspots where 80% or more of all historical commits were made by a single developer (the departing lead), creating an acute Bus Factor of 1.',
+    formula:
+      'Bus Factor = 1 when (Ownership Concentration ≥ 80%) AND (Criticality ≥ 50%)',
+    howCalculated: [
+      'Commit Attribution: Extracted from git shortlog and git blame across all branches in the workspace repository.',
+      'Concentration Threshold: Triggers when the departing engineer authored ≥ 80% of lines/commits on a file.',
+      'Criticality Filter: Only applies to components with criticality of 3/5 or higher to filter out trivial helper scripts.'
+    ],
+    thresholds:
+      'Identifies components that only one person in the company knows how to operate, debug, or deploy safely.',
+    whyItMatters:
+      'Requires pair-programming handover walkthroughs and ownership transfer before the departure date.'
+  },
+  average_gaps: {
+    title: 'Average Knowledge Gaps',
+    badge: 'Deterministic Aggregate',
+    badgeColor: 'bg-teal-50 text-teal-800 border-teal-200',
+    currentMetric: (data, stats) => `${stats.avgDocGap}% Doc Gap / ${stats.avgOwnership}% Ownership`,
+    whatIsIt:
+      'The portfolio-wide mean documentation deficit and author concentration across all tracked code modules and integrated communication channels.',
+    formula:
+      'Average Doc Gap = Mean(1 - DocCoverage) | Average Ownership = Mean(AuthorCommits / TotalCommits)',
+    howCalculated: [
+      'Documentation Gap (Average): Measures the missing docstring and runbook coverage across all indexed repository files.',
+      'Ownership (Average): Measures the mean percentage of historical contributions authored by the primary lead.',
+      'Deterministic Telemetry: Auditable and grounded in AST parser results and git commit metadata without guessing.'
+    ],
+    thresholds:
+      'Teams targeting smooth handovers should aim for < 30% documentation gap on all core services.',
+    whyItMatters:
+      'Highlights whether a repository has systematic documentation debt or balanced cross-team knowledge.'
+  },
+  monitored_scope: {
+    title: 'Monitored Scope',
+    badge: 'Continuous Monitoring',
+    badgeColor: 'bg-slate-100 text-slate-700 border-slate-200',
+    currentMetric: (data, stats) => `${data?.artifacts?.length ?? 0} Tracked Entities`,
+    whatIsIt:
+      'The total inventory of monitored components within this project workspace, spanning git repositories, exported Slack channels, Jira tickets, and runbooks.',
+    formula:
+      'Monitored Scope = Count(Git Modules) + Count(PRs) + Count(Slack Threads) + Count(Jira Tickets)',
+    howCalculated: [
+      'Git Scanner: Recursively indexes tracked source files and branch commits while ignoring build caches and vendors.',
+      'Activity Connectors: Pulls discussions from Slack and issues from Jira to surface tribal knowledge outside of git.',
+      'Real-Time Webhooks: Automatically updates file touch recency and commit counts whenever new pushes occur.'
+    ],
+    thresholds:
+      'Expands as you add additional repositories or connect external communication tools.',
+    whyItMatters:
+      'Ensures no critical architectural piece is omitted from risk scoring or successor onboarding.'
+  }
+};
+
 export default function RiskMap({ onNavigateToInterview, activeProject, refreshKey }) {
   const [data, setData] = useState(null);
   const [graphData, setGraphData] = useState(null);
@@ -23,6 +103,7 @@ export default function RiskMap({ onNavigateToInterview, activeProject, refreshK
   const [err, setErr] = useState(null);
   const [selectedArtifact, setSelectedArtifact] = useState(null);
   const [formulaModalOpen, setFormulaModalOpen] = useState(false);
+  const [activeMetricModal, setActiveMetricModal] = useState(null);
 
   // Multi-repo and continuous monitoring state
   const [selectedRepoId, setSelectedRepoId] = useState('');
@@ -71,6 +152,20 @@ export default function RiskMap({ onNavigateToInterview, activeProject, refreshK
     }, 4000);
     return () => clearInterval(timer);
   }, [activeProject?.id, selectedRepoId]);
+
+  // Global ESC key listener to close metric explainer & formula modals
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        setActiveMetricModal(null);
+        setFormulaModalOpen(false);
+      }
+    };
+    if (activeMetricModal || formulaModalOpen) {
+      window.addEventListener('keydown', handleKeyDown);
+    }
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [activeMetricModal, formulaModalOpen]);
 
   const handleRescan = async () => {
     setRescanning(true);
@@ -209,42 +304,46 @@ export default function RiskMap({ onNavigateToInterview, activeProject, refreshK
               <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
                 High Risk Exposure
               </span>
-              <span className="text-[10px] font-bold px-1.5 py-0.2 rounded-full bg-rose-50 text-rose-700 border border-rose-200">
-                ≥30% Score
-              </span>
+              <button
+                type="button"
+                onClick={() => setActiveMetricModal('high_risk')}
+                className="w-5 h-5 rounded-full border border-slate-300 bg-slate-50 hover:bg-teal-50 hover:border-teal-500 text-slate-500 hover:text-teal-700 font-bold text-xs flex items-center justify-center cursor-help transition shadow-2xs"
+                title="What is this & how is it calculated? (Esc to close)"
+                aria-label="Explain High Risk Exposure"
+              >
+                ?
+              </button>
             </div>
-            <div className="flex items-baseline gap-2">
+            <div className="flex items-baseline gap-2 pt-1">
               <span className="text-2xl font-extrabold text-slate-900 font-mono">
                 {data?.high_risk_count ?? 0}
               </span>
-              <span className="text-xs text-slate-500">artifacts</span>
-            </div>
-            <div className="text-[11px] text-slate-500 flex items-center gap-1.5 pt-0.5">
-              <span className="font-semibold text-rose-600">{stats.high} Critical</span>
-              <span className="text-slate-300">·</span>
-              <span className="font-semibold text-amber-600">{stats.med} Elevated</span>
+              <span className="text-xs text-slate-500 font-medium">artifacts</span>
             </div>
           </div>
 
-          {/* Tile 2: Bus Factor Hotspots */}
+          {/* Tile 2: Single Ownership */}
           <div className="space-y-1 sm:pl-4 pt-3 sm:pt-0">
             <div className="flex items-center justify-between">
               <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
                 Single Ownership
               </span>
-              <span className="text-[10px] font-bold px-1.5 py-0.2 rounded-full bg-amber-50 text-amber-800 border border-amber-200">
-                Bus Factor = 1
-              </span>
+              <button
+                type="button"
+                onClick={() => setActiveMetricModal('single_ownership')}
+                className="w-5 h-5 rounded-full border border-slate-300 bg-slate-50 hover:bg-teal-50 hover:border-teal-500 text-slate-500 hover:text-teal-700 font-bold text-xs flex items-center justify-center cursor-help transition shadow-2xs"
+                title="What is this & how is it calculated? (Esc to close)"
+                aria-label="Explain Single Ownership"
+              >
+                ?
+              </button>
             </div>
-            <div className="flex items-baseline gap-2">
+            <div className="flex items-baseline gap-2 pt-1">
               <span className="text-2xl font-extrabold text-slate-900 font-mono">
                 {data?.bus_factor_violations?.length ?? 0}
               </span>
-              <span className="text-xs text-slate-500">hotspots</span>
+              <span className="text-xs text-slate-500 font-medium">hotspots</span>
             </div>
-            <p className="text-[11px] text-slate-500 truncate pt-0.5">
-              Concentrated knowledge with {leaverName}
-            </p>
           </div>
 
           {/* Tile 3: Knowledge Gaps & Ownership */}
@@ -253,28 +352,21 @@ export default function RiskMap({ onNavigateToInterview, activeProject, refreshK
               <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
                 Average Gaps
               </span>
-              <span className="text-[10px] font-bold px-1.5 py-0.2 rounded-full bg-teal-50 text-teal-800 border border-teal-200">
-                Deterministic
+              <button
+                type="button"
+                onClick={() => setActiveMetricModal('average_gaps')}
+                className="w-5 h-5 rounded-full border border-slate-300 bg-slate-50 hover:bg-teal-50 hover:border-teal-500 text-slate-500 hover:text-teal-700 font-bold text-xs flex items-center justify-center cursor-help transition shadow-2xs"
+                title="What is this & how is it calculated? (Esc to close)"
+                aria-label="Explain Average Gaps"
+              >
+                ?
+              </button>
+            </div>
+            <div className="flex items-baseline gap-2 pt-1">
+              <span className="text-2xl font-extrabold text-slate-900 font-mono">
+                {stats.avgDocGap}% <span className="text-sm font-normal text-slate-400">/</span> {stats.avgOwnership}%
               </span>
             </div>
-            <div className="flex items-baseline gap-3">
-              <div className="flex items-baseline gap-1">
-                <span className="text-2xl font-extrabold text-slate-900 font-mono">
-                  {stats.avgDocGap}%
-                </span>
-                <span className="text-[11px] text-slate-500">Doc Gap</span>
-              </div>
-              <span className="text-slate-300">/</span>
-              <div className="flex items-baseline gap-1">
-                <span className="text-base font-bold text-slate-800 font-mono">
-                  {stats.avgOwnership}%
-                </span>
-                <span className="text-[11px] text-slate-500">Ownership</span>
-              </div>
-            </div>
-            <p className="text-[11px] text-slate-500 pt-0.5">
-              Based on git blame &amp; documentation depth
-            </p>
           </div>
 
           {/* Tile 4: Monitored Scope */}
@@ -283,19 +375,22 @@ export default function RiskMap({ onNavigateToInterview, activeProject, refreshK
               <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
                 Monitored Scope
               </span>
-              <span className="text-[10px] font-bold px-1.5 py-0.2 rounded-full bg-slate-100 text-slate-700 border border-slate-200">
-                Continuous
-              </span>
+              <button
+                type="button"
+                onClick={() => setActiveMetricModal('monitored_scope')}
+                className="w-5 h-5 rounded-full border border-slate-300 bg-slate-50 hover:bg-teal-50 hover:border-teal-500 text-slate-500 hover:text-teal-700 font-bold text-xs flex items-center justify-center cursor-help transition shadow-2xs"
+                title="What is this & how is it calculated? (Esc to close)"
+                aria-label="Explain Monitored Scope"
+              >
+                ?
+              </button>
             </div>
-            <div className="flex items-baseline gap-2">
+            <div className="flex items-baseline gap-2 pt-1">
               <span className="text-2xl font-extrabold text-slate-900 font-mono">
                 {data?.artifacts?.length ?? 0}
               </span>
-              <span className="text-xs text-slate-500 truncate">modules &amp; channels</span>
+              <span className="text-xs text-slate-500 font-medium">modules</span>
             </div>
-            <p className="text-[11px] text-slate-500 truncate pt-0.5">
-              Across repository <span className="font-semibold text-slate-700">{repoName}</span>
-            </p>
           </div>
         </div>
 
@@ -430,6 +525,105 @@ export default function RiskMap({ onNavigateToInterview, activeProject, refreshK
                 className="px-4 py-2 text-xs font-semibold text-white bg-slate-900 rounded-xl hover:bg-slate-800 transition cursor-pointer"
               >
                 Got it
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Metric Calculation Explanation Modal (Esc to close) */}
+      {activeMetricModal && METRIC_EXPLANATIONS[activeMetricModal] && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs animate-in fade-in"
+          onClick={() => setActiveMetricModal(null)}
+          role="presentation"
+        >
+          <div
+            className="bg-white rounded-2xl border border-slate-200 shadow-2xl w-full max-w-lg overflow-hidden animate-in zoom-in-95"
+            onClick={(e) => e.stopPropagation()}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="metric-modal-title"
+          >
+            {/* Header */}
+            <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-xl bg-teal-50 border border-teal-200 text-[#0EB8A0] flex items-center justify-center font-bold text-sm">
+                  ?
+                </div>
+                <div>
+                  <h3 id="metric-modal-title" className="text-base font-bold text-slate-900">
+                    {METRIC_EXPLANATIONS[activeMetricModal].title}
+                  </h3>
+                  <div className="flex items-center gap-2 mt-0.5">
+                    <span className={`text-[10px] font-bold px-1.5 py-0.2 rounded-md border ${METRIC_EXPLANATIONS[activeMetricModal].badgeColor}`}>
+                      {METRIC_EXPLANATIONS[activeMetricModal].badge}
+                    </span>
+                    <span className="text-[11px] font-mono text-slate-500 font-semibold">
+                      Current: {METRIC_EXPLANATIONS[activeMetricModal].currentMetric(data, stats)}
+                    </span>
+                  </div>
+                </div>
+              </div>
+              <button
+                onClick={() => setActiveMetricModal(null)}
+                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition cursor-pointer"
+                aria-label="Close metric details (Esc)"
+                title="Close (Esc)"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Content */}
+            <div className="p-6 space-y-4 text-xs text-slate-600 max-h-[75vh] overflow-y-auto">
+              {/* What is it */}
+              <div>
+                <h4 className="text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1">
+                  What is this metric?
+                </h4>
+                <p className="text-slate-700 leading-relaxed font-medium">
+                  {METRIC_EXPLANATIONS[activeMetricModal].whatIsIt}
+                </p>
+              </div>
+
+              {/* How it is calculated / Formula */}
+              <div>
+                <h4 className="text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1.5">
+                  How is it calculated?
+                </h4>
+                <div className="p-3 bg-slate-50 border border-slate-200/90 rounded-xl font-mono text-[11px] text-slate-900 font-bold leading-relaxed mb-2.5">
+                  {METRIC_EXPLANATIONS[activeMetricModal].formula}
+                </div>
+                <ul className="space-y-1.5 pl-1">
+                  {METRIC_EXPLANATIONS[activeMetricModal].howCalculated.map((item, idx) => (
+                    <li key={idx} className="flex items-start gap-2 text-slate-600 leading-relaxed">
+                      <span className="w-1.5 h-1.5 rounded-full bg-teal-500 mt-1.5 shrink-0" />
+                      <span>{item}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+
+              {/* Thresholds & Impact */}
+              <div className="p-3.5 rounded-xl bg-teal-50/60 border border-teal-100 text-teal-950 space-y-1">
+                <span className="font-bold text-xs block text-teal-900">Why it matters for handovers:</span>
+                <p className="text-[11px] text-teal-800 leading-relaxed">
+                  {METRIC_EXPLANATIONS[activeMetricModal].whyItMatters}
+                </p>
+              </div>
+            </div>
+
+            {/* Footer with Esc button hint and Close button */}
+            <div className="px-6 py-3 bg-slate-50 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-400">
+              <span className="flex items-center gap-1 font-mono">
+                Press <kbd className="px-1.5 py-0.5 bg-white border border-slate-200 rounded text-[10px] text-slate-600 font-semibold shadow-2xs">Esc</kbd> to close
+              </span>
+              <button
+                onClick={() => setActiveMetricModal(null)}
+                className="px-4 py-1.5 text-xs font-semibold text-white bg-slate-900 rounded-xl hover:bg-slate-800 transition cursor-pointer"
+              >
+                Close
               </button>
             </div>
           </div>

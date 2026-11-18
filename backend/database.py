@@ -416,6 +416,13 @@ def init_db():
             if col not in artifact_cols:
                 conn.execute(f"ALTER TABLE artifacts ADD COLUMN {col} {col_type};")
 
+        # Connector credentials migration: updated_at
+        existing_tables = [t[0] for t in conn.execute("SELECT name FROM sqlite_master WHERE type='table'").fetchall()]
+        if "connector_credentials" in existing_tables:
+            cc_cols = [r["name"] for r in conn.execute("PRAGMA table_info(connector_credentials)").fetchall()]
+            if "updated_at" not in cc_cols:
+                conn.execute("ALTER TABLE connector_credentials ADD COLUMN updated_at TEXT;")
+
     conn.close()
 
 def get_active_project():

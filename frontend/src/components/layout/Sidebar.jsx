@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import echoIcon from '../../assets/echo-icon.png';
 import {
   Compass,
@@ -13,6 +13,7 @@ import {
   Sparkles,
   RotateCcw,
   Plus,
+  Check,
 } from 'lucide-react';
 
 export default function Sidebar({
@@ -34,6 +35,29 @@ export default function Sidebar({
   manager,
 }) {
   const isLiveMode = activeProject?.mode === 'live';
+  const [projectDropdownOpen, setProjectDropdownOpen] = useState(false);
+  const projectDropdownRef = useRef(null);
+
+  useEffect(() => {
+    const handleOutsideClick = (e) => {
+      if (projectDropdownRef.current && !projectDropdownRef.current.contains(e.target)) {
+        setProjectDropdownOpen(false);
+      }
+    };
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        setProjectDropdownOpen(false);
+      }
+    };
+    if (projectDropdownOpen) {
+      document.addEventListener('mousedown', handleOutsideClick);
+      document.addEventListener('keydown', handleKeyDown);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleOutsideClick);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [projectDropdownOpen]);
 
   const navItems = [
     {
@@ -144,27 +168,90 @@ export default function Sidebar({
               </span>
             </div>
 
-            <div className="relative">
-              <div className="flex items-center gap-2 pl-2.5 pr-7 py-1.5 rounded-xl bg-white border border-slate-200 text-xs font-semibold text-slate-800 shadow-2xs hover:border-slate-300 transition">
-                <FolderGit2 className="w-3.5 h-3.5 text-slate-400 shrink-0 pointer-events-none" />
-                <select
-                  value={activeProject?.id || ''}
-                  onChange={(e) => onSelectProject && onSelectProject(e.target.value)}
-                  className="w-full appearance-none bg-transparent border-0 text-slate-900 font-bold focus:ring-0 cursor-pointer pr-3 py-0 text-xs truncate font-mono"
-                  aria-label="Select active project workspace"
-                >
-                  {projects.length === 0 ? (
-                    <option value="">No projects</option>
-                  ) : (
-                    projects.map((p) => (
-                      <option key={p.id} value={p.id}>
-                        {p.name.split('—')[0].trim()} ({p.mode === 'live' ? 'Live Git' : 'Demo'})
-                      </option>
-                    ))
-                  )}
-                </select>
-                <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-2 pointer-events-none" />
-              </div>
+            <div className="relative" ref={projectDropdownRef}>
+              <button
+                type="button"
+                onClick={() => setProjectDropdownOpen(!projectDropdownOpen)}
+                className="w-full flex items-center justify-between gap-2 px-2.5 py-2 rounded-xl bg-white border border-slate-200 text-xs font-semibold text-slate-800 shadow-2xs hover:border-teal-500/80 hover:bg-slate-50 transition cursor-pointer text-left focus:outline-none focus:ring-2 focus:ring-teal-500/20"
+                aria-expanded={projectDropdownOpen}
+                aria-label="Select active project workspace"
+              >
+                <div className="flex items-center gap-2 min-w-0">
+                  <FolderGit2 className="w-3.5 h-3.5 text-teal-600 shrink-0" />
+                  <span className="font-bold text-slate-900 truncate font-mono text-xs">
+                    {activeProject ? activeProject.name.split('—')[0].trim() : 'Select Project'}
+                  </span>
+                </div>
+                <div className="flex items-center gap-1.5 shrink-0">
+                  <span
+                    className={`text-[9px] font-bold px-1.5 py-0.2 rounded-md border ${
+                      isLiveMode
+                        ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                        : 'bg-teal-50 text-teal-800 border-teal-200'
+                    }`}
+                  >
+                    {isLiveMode ? 'Live Git' : 'Demo'}
+                  </span>
+                  <ChevronDown
+                    className={`w-3.5 h-3.5 text-slate-400 transition-transform duration-150 ${
+                      projectDropdownOpen ? 'rotate-180 text-teal-600' : ''
+                    }`}
+                  />
+                </div>
+              </button>
+
+              {/* Custom Styled Dropdown Menu */}
+              {projectDropdownOpen && (
+                <div className="absolute top-full left-0 right-0 mt-1.5 z-50 bg-white border border-slate-200 rounded-xl shadow-xl overflow-hidden py-1 divide-y divide-slate-100 animate-in fade-in slide-in-from-top-1">
+                  <div className="px-3 py-1.5 bg-slate-50/80 text-[10px] font-bold uppercase tracking-wider text-slate-400 flex items-center justify-between">
+                    <span>Workspaces ({projects.length})</span>
+                    <span>Switch Repo</span>
+                  </div>
+                  <div className="max-h-56 overflow-y-auto py-1">
+                    {projects.length === 0 ? (
+                      <div className="px-3 py-2 text-xs text-slate-400 italic">No workspaces available</div>
+                    ) : (
+                      projects.map((p) => {
+                        const isSelected = p.id === activeProject?.id;
+                        const pIsLive = p.mode === 'live';
+                        const pName = p.name.split('—')[0].trim();
+                        return (
+                          <button
+                            key={p.id}
+                            type="button"
+                            onClick={() => {
+                              if (onSelectProject) onSelectProject(p.id);
+                              setProjectDropdownOpen(false);
+                            }}
+                            className={`w-full px-3 py-2 flex items-center justify-between gap-2 text-left cursor-pointer transition ${
+                              isSelected
+                                ? 'bg-teal-50/70 text-teal-950 font-bold'
+                                : 'hover:bg-slate-50 text-slate-700'
+                            }`}
+                          >
+                            <div className="flex items-center gap-2 min-w-0">
+                              <FolderGit2 className={`w-3.5 h-3.5 shrink-0 ${isSelected ? 'text-teal-600' : 'text-slate-400'}`} />
+                              <span className="truncate font-mono text-xs">{pName}</span>
+                            </div>
+                            <div className="flex items-center gap-1.5 shrink-0">
+                              <span
+                                className={`text-[9px] font-semibold px-1.5 py-0.2 rounded-md border ${
+                                  pIsLive
+                                    ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                                    : 'bg-teal-50 text-teal-800 border-teal-200'
+                                }`}
+                              >
+                                {pIsLive ? 'Live Git' : 'Demo'}
+                              </span>
+                              {isSelected && <Check className="w-3.5 h-3.5 text-teal-600" />}
+                            </div>
+                          </button>
+                        );
+                      })
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 

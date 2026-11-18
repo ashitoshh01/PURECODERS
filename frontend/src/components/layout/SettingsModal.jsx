@@ -14,8 +14,46 @@ import {
 } from 'lucide-react';
 import { echoApi } from '../../api';
 
+const DEFAULT_CONNECTORS = [
+  {
+    id: 'conn-git',
+    name: 'Local Git Repository',
+    type: 'git',
+    status: 'connected',
+    details: 'Active local Git workspace integration: commits, shortlog, and file touch tracking.',
+  },
+  {
+    id: 'conn-github',
+    name: 'GitHub REST API',
+    type: 'github',
+    status: 'not_configured',
+    details: 'GitHub not connected. Connect via OAuth/Token to ingest remote repositories.',
+  },
+  {
+    id: 'conn-slack',
+    name: 'Slack Workspace',
+    type: 'slack',
+    status: 'not_configured',
+    details: 'Slack OAuth / API token not configured. Connect your workspace to ingest live discussion threads.',
+  },
+  {
+    id: 'conn-jira',
+    name: 'Atlassian Jira',
+    type: 'jira',
+    status: 'not_configured',
+    details: 'Atlassian Jira not configured. Connect your Jira instance to detect unassigned & critical issue gaps.',
+  },
+  {
+    id: 'conn-docs',
+    name: 'Documentation & Runbooks',
+    type: 'docs',
+    status: 'connected',
+    details: 'Workspace markdown runbooks, README, and inline docstrings indexed.',
+  },
+];
+
 export function SettingsModal({ isOpen, onClose, onScanLiveGit }) {
-  const [connectors, setConnectors] = useState([]);
+  const [connectors, setConnectors] = useState(DEFAULT_CONNECTORS);
   const [loadingConn, setLoadingConn] = useState(false);
   const [scanning, setScanning] = useState(false);
   const [scanMsg, setScanMsg] = useState(null);
@@ -36,8 +74,14 @@ export function SettingsModal({ isOpen, onClose, onScanLiveGit }) {
   const refreshConnectors = () => {
     setLoadingConn(true);
     echoApi.getConnectors()
-      .then((res) => setConnectors(res.connectors || []))
-      .catch(() => setConnectors([]))
+      .then((res) => {
+        if (res && Array.isArray(res.connectors) && res.connectors.length > 0) {
+          setConnectors(res.connectors);
+        } else {
+          setConnectors(DEFAULT_CONNECTORS);
+        }
+      })
+      .catch(() => setConnectors(DEFAULT_CONNECTORS))
       .finally(() => setLoadingConn(false));
   };
 
