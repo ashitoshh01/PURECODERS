@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Menu } from 'lucide-react';
+import echoIcon from '../../assets/echo-icon.png';
 import Sidebar from './Sidebar';
 import { SettingsModal } from './SettingsModal';
 import ConnectRepoModal from './ConnectRepoModal';
@@ -24,7 +25,6 @@ export default function AppShell({
   children,
 }) {
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [desktopSidebarOpen, setDesktopSidebarOpen] = useState(true);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [connectModalOpen, setConnectModalOpen] = useState(false);
 
@@ -36,8 +36,6 @@ export default function AppShell({
         onSelectTab={onSelectTab}
         mobileOpen={mobileOpen}
         onCloseMobile={() => setMobileOpen(false)}
-        desktopSidebarOpen={desktopSidebarOpen}
-        onToggleSidebar={() => setDesktopSidebarOpen((prev) => !prev)}
         onOpenSettings={() => setSettingsOpen(true)}
         onOpenConnectModal={() => setConnectModalOpen(true)}
         onResetDemo={onResetDemo}
@@ -53,24 +51,28 @@ export default function AppShell({
         onSwitchRole={onSwitchRole}
       />
 
-      {/* Main Content Area (offset by sidebar on desktop when open) */}
-      <div className={`${desktopSidebarOpen ? 'lg:pl-64' : 'lg:pl-0'} flex flex-col flex-1 min-w-0 transition-all duration-200 ease-in-out`}>
-        {/* Floating Toggle Button (Visible only when sidebar is closed on desktop or on mobile) */}
-        {(!desktopSidebarOpen || !mobileOpen) && (
-          <button
-            onClick={() => {
-              setDesktopSidebarOpen(true);
-              setMobileOpen(true);
-            }}
-            className={`fixed top-4 left-4 z-40 p-2 rounded-xl bg-white/95 backdrop-blur-xs border border-slate-200/90 shadow-md text-slate-700 hover:text-slate-900 hover:bg-slate-100 transition cursor-pointer ${
-              desktopSidebarOpen ? 'lg:hidden flex' : 'flex'
-            }`}
-            aria-label="Open navigation sidebar"
-            title="Open sidebar"
-          >
-            <Menu className="w-5 h-5 text-slate-700" />
-          </button>
-        )}
+      {/* Main Content Area (permanently offset by docked sidebar on desktop) */}
+      <div className="lg:pl-64 flex flex-col flex-1 min-w-0">
+        {/* Mobile Header (Only on small screens < lg, inline non-overlapping flow) */}
+        <div className="lg:hidden h-14 px-4 bg-white border-b border-slate-200/90 flex items-center justify-between sticky top-0 z-30">
+          <div className="flex items-center gap-2.5">
+            <button
+              onClick={() => setMobileOpen(true)}
+              className="p-1.5 rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition cursor-pointer"
+              aria-label="Open navigation menu"
+              title="Open navigation menu"
+            >
+              <Menu className="w-5 h-5" />
+            </button>
+            <div className="flex items-center gap-2">
+              <img src={echoIcon} alt="Echo Logo" className="w-6 h-6 object-contain" />
+              <span className="font-bold text-slate-900 tracking-tight text-sm">Echo</span>
+            </div>
+          </div>
+          <span className="text-[10px] font-semibold px-2 py-0.5 rounded-md border bg-teal-50 text-teal-800 border-teal-200">
+            Knowledge-Risk
+          </span>
+        </div>
 
         <main className={`flex-1 w-full mx-auto ${activeTab === 'ask' ? 'p-3 sm:p-5 lg:p-6 max-w-7xl flex flex-col' : 'p-4 sm:p-6 lg:p-8 max-w-7xl'}`}>
           {children}
