@@ -101,7 +101,7 @@ export default function RiskTable({
           <div className="flex items-center gap-1 overflow-x-auto pb-1 xl:pb-0 scrollbar-none">
             {[
               { id: 'all', label: 'All Artifacts' },
-              { id: 'priority', label: '🔥 Priority Hotspots' },
+              { id: 'priority', label: 'Priority Hotspots' },
               { id: 'critical', label: 'Critical (≥50%)' },
               { id: 'bus1', label: 'Bus Factor = 1' },
               { id: 'planted', label: 'Planted Gaps' },

@@ -1,7 +1,5 @@
 import React from 'react';
 import {
-  Sparkles,
-  Bot,
   User,
   AlertTriangle,
   Link2,
@@ -177,26 +175,15 @@ export default function ChatMessage({ message }) {
 
   return (
     <div className="flex items-start gap-3.5 fade-in">
-      {/* Echo Robot Avatar */}
-      <div className="w-7 h-7 rounded-full bg-[#071126] text-[#18C6B0] flex items-center justify-center shrink-0 mt-1 shadow-2xs">
-        <Bot className="w-4 h-4" />
-      </div>
+      {/* Echo Bot Avatar */}
+      <img
+        src="/echo-bot.png"
+        alt="Echo"
+        className="w-7 h-7 rounded-lg object-contain shrink-0 mt-0.5 shadow-2xs"
+      />
 
       {/* Message Content Container */}
       <div className="flex-1 min-w-0 space-y-2.5 pt-0.5 text-sm leading-relaxed text-slate-800">
-        {/* ASI:One AI Header Badge */}
-        {isAi && !isUnknown && (
-          <div className="flex items-center gap-2 pb-1 text-xs font-semibold text-purple-700">
-            <Sparkles className="w-3.5 h-3.5 text-purple-600 animate-pulse" />
-            <span>ASI:One Grounded</span>
-            {message.ai_model && (
-              <span className="font-mono text-[10px] px-1.5 py-0.2 rounded bg-purple-50 text-purple-800 border border-purple-200 font-semibold">
-                {message.ai_model}
-              </span>
-            )}
-          </div>
-        )}
-
         {/* Unknown Warning Banner */}
         {isUnknown && (
           <div className="p-3 rounded-xl bg-amber-50/80 border border-amber-200 text-amber-900 text-xs flex items-center gap-2 font-bold mb-2">

@@ -13,6 +13,7 @@ import {
   Compass,
   Package,
   UserCheck,
+  Check,
 } from 'lucide-react';
 import { echoApi } from '../../api';
 
@@ -290,17 +291,21 @@ export default function Signup({
                     <div className={`h-full ${strengthLabel.color} ${strengthLabel.width} transition-all duration-300`} />
                   </div>
                   <div className="grid grid-cols-2 gap-1 text-[10px] text-slate-500 pt-1 font-medium">
-                    <span className={passwordCriteria.length ? 'text-teal-700' : ''}>
-                      {passwordCriteria.length ? '✓' : '•'} 8+ characters
+                    <span className={`inline-flex items-center gap-1 ${passwordCriteria.length ? 'text-teal-700 font-semibold' : ''}`}>
+                      {passwordCriteria.length ? <Check className="w-3 h-3 text-teal-600" /> : <span className="w-1.5 h-1.5 rounded-full bg-slate-300 ml-0.5 mr-1 inline-block" />}
+                      <span>8+ characters</span>
                     </span>
-                    <span className={passwordCriteria.hasUpper ? 'text-teal-700' : ''}>
-                      {passwordCriteria.hasUpper ? '✓' : '•'} Uppercase letter
+                    <span className={`inline-flex items-center gap-1 ${passwordCriteria.hasUpper ? 'text-teal-700 font-semibold' : ''}`}>
+                      {passwordCriteria.hasUpper ? <Check className="w-3 h-3 text-teal-600" /> : <span className="w-1.5 h-1.5 rounded-full bg-slate-300 ml-0.5 mr-1 inline-block" />}
+                      <span>Uppercase letter</span>
                     </span>
-                    <span className={passwordCriteria.hasLower ? 'text-teal-700' : ''}>
-                      {passwordCriteria.hasLower ? '✓' : '•'} Lowercase letter
+                    <span className={`inline-flex items-center gap-1 ${passwordCriteria.hasLower ? 'text-teal-700 font-semibold' : ''}`}>
+                      {passwordCriteria.hasLower ? <Check className="w-3 h-3 text-teal-600" /> : <span className="w-1.5 h-1.5 rounded-full bg-slate-300 ml-0.5 mr-1 inline-block" />}
+                      <span>Lowercase letter</span>
                     </span>
-                    <span className={passwordCriteria.hasNumberOrSpecial ? 'text-teal-700' : ''}>
-                      {passwordCriteria.hasNumberOrSpecial ? '✓' : '•'} Number or symbol
+                    <span className={`inline-flex items-center gap-1 ${passwordCriteria.hasNumberOrSpecial ? 'text-teal-700 font-semibold' : ''}`}>
+                      {passwordCriteria.hasNumberOrSpecial ? <Check className="w-3 h-3 text-teal-600" /> : <span className="w-1.5 h-1.5 rounded-full bg-slate-300 ml-0.5 mr-1 inline-block" />}
+                      <span>Number or symbol</span>
                     </span>
                   </div>
                 </div>

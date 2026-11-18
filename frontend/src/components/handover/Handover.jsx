@@ -8,6 +8,7 @@ import {
   RefreshCw,
   CheckCircle2,
   ShieldCheck,
+  Check,
 } from 'lucide-react';
 import PageHeader from '../common/PageHeader';
 import LoadingState from '../common/LoadingState';
@@ -26,6 +27,11 @@ export default function Handover({ active, onNavigateToInterview, activeProject,
   const [approving, setApproving] = useState(false);
   const [activeSection, setActiveSection] = useState('onboarding'); // 'onboarding' | 'review' | 'landmines' | 'decisions' | 'loops' | 'contacts' | 'all'
 
+  // Refresh calibration state
+  const [refreshing, setRefreshing] = useState(false);
+  const [refreshStep, setRefreshStep] = useState('');
+  const [justRefreshed, setJustRefreshed] = useState(false);
+
   const loadHandover = async () => {
     setLoading(true);
     setErr(null);
@@ -36,6 +42,27 @@ export default function Handover({ active, onNavigateToInterview, activeProject,
       setErr(e.message);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleRefresh = async () => {
+    if (refreshing) return;
+    setRefreshing(true);
+    setJustRefreshed(false);
+    setRefreshStep('Synthesizing interview answers & open loops...');
+
+    try {
+      await loadHandover();
+      await new Promise((r) => setTimeout(r, 450));
+      setRefreshStep('Calibrating onboarding path & verification tasks...');
+      await new Promise((r) => setTimeout(r, 400));
+      setJustRefreshed(true);
+      setTimeout(() => setJustRefreshed(false), 2400);
+    } catch (e) {
+      setErr(e.message);
+    } finally {
+      setRefreshing(false);
+      setRefreshStep('');
     }
   };
 
@@ -133,20 +160,57 @@ export default function Handover({ active, onNavigateToInterview, activeProject,
             </button>
 
             <button
-              onClick={loadHandover}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-700 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition shadow-2xs cursor-pointer"
+              onClick={handleRefresh}
+              disabled={refreshing || loading}
+              className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg transition-all duration-200 shadow-2xs cursor-pointer ${
+                refreshing
+                  ? 'bg-teal-50 text-teal-800 border border-teal-300 ring-2 ring-teal-500/20'
+                  : justRefreshed
+                  ? 'bg-emerald-50 text-emerald-800 border border-emerald-300'
+                  : 'text-slate-700 bg-white border border-slate-200 hover:bg-slate-50'
+              }`}
+              title="Refresh and calibrate handover package"
             >
-              <RefreshCw
-                className={`w-3.5 h-3.5 ${loading ? 'animate-spin text-[#0EB8A0]' : 'text-slate-400'}`}
-              />
-              <span>Refresh Package</span>
+              {justRefreshed ? (
+                <Check className="w-3.5 h-3.5 text-emerald-600 animate-in zoom-in-50" />
+              ) : (
+                <RefreshCw
+                  className={`w-3.5 h-3.5 ${refreshing ? 'animate-spin text-teal-600' : 'text-slate-400'}`}
+                />
+              )}
+              <span>
+                {refreshing
+                  ? 'Refreshing...'
+                  : justRefreshed
+                  ? 'Package Updated'
+                  : 'Refresh Package'}
+              </span>
             </button>
           </div>
         }
       />
 
+      {/* Refresh Animation & Progress Banner */}
+      {refreshing && (
+        <div className="mb-4 p-3 bg-teal-50/90 border border-teal-200/90 rounded-2xl flex items-center justify-between text-xs text-teal-900 shadow-xs animate-in fade-in slide-in-from-top-1">
+          <div className="flex items-center gap-2.5">
+            <span className="relative flex h-2.5 w-2.5">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-teal-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-teal-600"></span>
+            </span>
+            <span className="font-semibold text-teal-950">{refreshStep}</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-[11px] font-mono text-teal-700">Updating package...</span>
+            <div className="w-20 h-1.5 bg-teal-200/70 rounded-full overflow-hidden">
+              <div className="w-full h-full bg-teal-600 animate-pulse"></div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* 4 Summary Metric Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className={`grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 ${refreshing ? 'opacity-70 scale-[0.99] transition-all duration-300' : 'transition-all duration-300'}`}>
         <MetricCard
           label="Onboarding Timeline"
           value={tasksCount > 0 ? `${totalWeeks} Week${totalWeeks > 1 ? 's' : ''}` : '0 Weeks'}
@@ -184,13 +248,13 @@ export default function Handover({ active, onNavigateToInterview, activeProject,
       {/* Navigation Filter Tabs */}
       <div className="flex items-center gap-1.5 overflow-x-auto pb-1 border-b border-slate-200/90">
         {[
-          { id: 'onboarding', label: '🗓 Onboarding Path' },
-          { id: 'review', label: '🛡️ Reviewer Sign-off' },
-          { id: 'landmines', label: '💣 Critical Landmines' },
-          { id: 'decisions', label: '📜 Decision Log' },
-          { id: 'loops', label: '🔁 Open Loops' },
-          { id: 'contacts', label: '👤 Who to Ask' },
-          { id: 'all', label: '📄 View All Sections' },
+          { id: 'onboarding', label: 'Onboarding Path' },
+          { id: 'review', label: 'Reviewer Sign-off' },
+          { id: 'landmines', label: 'Critical Landmines' },
+          { id: 'decisions', label: 'Decision Log' },
+          { id: 'loops', label: 'Open Loops' },
+          { id: 'contacts', label: 'Who to Ask' },
+          { id: 'all', label: 'View All Sections' },
         ].map((tab) => (
           <button
             key={tab.id}
@@ -223,7 +287,7 @@ export default function Handover({ active, onNavigateToInterview, activeProject,
               <div className="flex items-center gap-2">
                 <Calendar className="w-4 h-4 text-[#0EB8A0]" />
                 <h3 className="text-sm font-bold text-slate-900">
-                  🗓 Successor Onboarding Plan
+                  Successor Onboarding Plan
                 </h3>
               </div>
               <span className="text-xs text-slate-400 font-medium">Click tasks to toggle completed state (saved to database)</span>
@@ -242,7 +306,7 @@ export default function Handover({ active, onNavigateToInterview, activeProject,
               <div className="flex items-center gap-2">
                 <AlertTriangle className="w-4 h-4 text-rose-500" />
                 <h3 className="text-sm font-bold text-slate-900">
-                  💣 High-Risk Landmines &amp; Captured Insights
+                  High-Risk Landmines &amp; Captured Insights
                 </h3>
               </div>
               <span className="text-xs text-slate-500 font-medium">
@@ -277,7 +341,7 @@ export default function Handover({ active, onNavigateToInterview, activeProject,
               <section className="bg-white rounded-xl border border-slate-200/90 p-5 shadow-xs">
                 <div className="flex items-center gap-2 mb-3">
                   <Repeat className="w-4 h-4 text-amber-500" />
-                  <h3 className="text-sm font-bold text-slate-900">🔁 Active Open Loops</h3>
+                  <h3 className="text-sm font-bold text-slate-900">Active Open Loops</h3>
                 </div>
                 {data?.open_loops?.length === 0 ? (
                   <p className="text-xs text-slate-400 italic py-4 text-center">No open loops recorded.</p>
@@ -308,7 +372,7 @@ export default function Handover({ active, onNavigateToInterview, activeProject,
               <section className="bg-white rounded-xl border border-slate-200/90 p-5 shadow-xs">
                 <div className="flex items-center gap-2 mb-3">
                   <Users className="w-4 h-4 text-[#0EB8A0]" />
-                  <h3 className="text-sm font-bold text-slate-900">👤 Subject Matter Contacts</h3>
+                  <h3 className="text-sm font-bold text-slate-900">Subject Matter Contacts</h3>
                 </div>
                 {data?.who_to_ask?.length === 0 ? (
                   <p className="text-xs text-slate-400 italic py-4 text-center">No specific contacts assigned.</p>
@@ -347,7 +411,7 @@ export default function Handover({ active, onNavigateToInterview, activeProject,
               <div className="flex items-center gap-2">
                 <ScrollText className="w-4 h-4 text-[#0EB8A0]" />
                 <h3 className="text-sm font-bold text-slate-900">
-                  📜 Captured Architectural Decisions Log
+                  Captured Architectural Decisions Log
                 </h3>
               </div>
               <span className="text-xs text-slate-400 font-medium">

@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
   Sparkles,
-  Bot,
   Plus,
   History,
   Trash2,
@@ -47,7 +46,7 @@ export default function AskEcho({ activeProject, successor, refreshKey }) {
 
   const defaultGreeting = {
     role: 'echo',
-    text: `Hi ${successorName}! I'm Echo, your knowledge-risk assistant powered by ASI:One. I answer questions with deep grounding across the codebase, commit history, exit interview notes, and architectural decisions. If evidence is missing, I won't guess — I'll tell you who to ask instead.`,
+    text: `Hi ${successorName}! I'm Echo, your knowledge-risk assistant. I answer questions with deep grounding across the codebase, commit history, exit interview notes, and architectural decisions. If evidence is missing, I won't guess — I'll tell you who to ask instead.`,
     citations: [],
     ai_provider: 'asi1',
     ai_model: 'asi1',
@@ -171,7 +170,7 @@ export default function AskEcho({ activeProject, successor, refreshKey }) {
         {
           role: 'echo',
           answer: null,
-          echo_says: `Error contacting ASI:One AI assistant: ${e.message}`,
+          echo_says: `Error contacting AI assistant: ${e.message}`,
           citations: [],
           is_ai: false,
         },
@@ -192,9 +191,10 @@ export default function AskEcho({ activeProject, successor, refreshKey }) {
         'Who should I ask about Core Architecture?',
       ]
     : [
-        'Why is the retry limit 7?',
-        'What is the wifi password?',
-        'How does nightly sync work?',
+        'Why was the payment retry limit changed to 7?',
+        'How does the nightly data sync job work?',
+        'What are the highest risk areas in Core Platform?',
+        'Who is the domain expert for auth and sessions?',
       ];
 
   return (
@@ -202,13 +202,12 @@ export default function AskEcho({ activeProject, successor, refreshKey }) {
       {/* ChatGPT-Style Top Header Bar */}
       <header className="h-14 px-4 sm:px-6 border-b border-slate-100 bg-white/95 backdrop-blur-sm flex items-center justify-between shrink-0 z-10">
         <div className="flex items-center gap-2.5 min-w-0">
-          <div className="w-7 h-7 rounded-lg bg-[#071126] text-[#18C6B0] flex items-center justify-center font-bold shadow-xs shrink-0">
-            <Bot className="w-4 h-4" />
-          </div>
-          <span className="font-bold text-slate-900 text-sm sm:text-base tracking-tight shrink-0">Echo</span>
-          <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-teal-50 text-teal-800 border border-teal-200/80 shrink-0">
-            ASI:One Grounded
-          </span>
+          <img
+            src="/echo-bot.png"
+            alt="Echo"
+            className="w-7 h-7 rounded-lg object-contain shadow-2xs shrink-0"
+          />
+          <span className="font-bold text-slate-900 text-sm sm:text-base tracking-tight shrink-0">Echo AI Assistant</span>
           {activeConvTitle && (
             <span className="hidden md:inline text-xs text-slate-500 font-medium truncate max-w-xs pl-2 border-l border-slate-200">
               {activeConvTitle}
@@ -257,10 +256,10 @@ export default function AskEcho({ activeProject, successor, refreshKey }) {
           ))}
 
           {busy && (
-            <div className="flex items-center gap-3 p-3.5 rounded-2xl bg-teal-50/70 border border-teal-200/80 text-teal-950 text-xs w-fit shadow-2xs animate-pulse">
-              <Bot className="w-4 h-4 text-[#0EB8A0] animate-bounce" />
+            <div className="flex items-center gap-3 p-3 rounded-2xl bg-teal-50/70 border border-teal-200/80 text-teal-950 text-xs w-fit shadow-2xs animate-pulse">
+              <img src="/echo-bot.png" alt="Echo" className="w-4 h-4 object-contain" />
               <span className="font-semibold">
-                Echo is consulting ASI:One AI with verified git context &amp; commits...
+                Echo is searching verified git context &amp; decisions...
               </span>
             </div>
           )}

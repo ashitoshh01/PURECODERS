@@ -12,7 +12,6 @@ import {
   ChevronDown,
   ChevronUp,
   Sparkles,
-  RotateCcw,
   Plus,
   Check,
   LogOut,
@@ -39,6 +38,7 @@ export default function Sidebar({
   currentUser,
   onLogout,
   onSwitchRole,
+  onStartTour,
 }) {
   const isLiveMode = activeProject?.mode === 'live';
   const [projectDropdownOpen, setProjectDropdownOpen] = useState(false);
@@ -114,7 +114,7 @@ export default function Sidebar({
       id: 'interview',
       label: 'Exit Interview',
       icon: Mic,
-      badge: '15m',
+      badge: 'Capture',
       description: 'Grounded AI extraction',
     },
     {
@@ -163,15 +163,11 @@ export default function Sidebar({
             <div className="min-w-0">
               <div className="flex items-center gap-1.5">
                 <span className="font-bold text-slate-900 tracking-tight text-base leading-none">Echo</span>
-                <span
-                  className={`text-[10px] font-semibold px-1.5 py-0.2 rounded-md border ${
-                    isLiveMode
-                      ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
-                      : 'bg-teal-50 text-teal-800 border-teal-200'
-                  }`}
-                >
-                  {isLiveMode ? 'Live Git' : 'Benchmark'}
-                </span>
+                {isLiveMode && (
+                  <span className="text-[10px] font-semibold px-1.5 py-0.2 rounded-md border bg-emerald-50 text-emerald-800 border-emerald-200">
+                    Live Git
+                  </span>
+                )}
               </div>
               <p className="text-[11px] text-slate-500 font-medium leading-none mt-1 truncate">
                 Knowledge-Risk Engine
@@ -200,18 +196,14 @@ export default function Sidebar({
               <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
                 Workspace
               </span>
-              <span
-                className={`text-[10px] font-semibold px-1.5 py-0.2 rounded-md border ${
-                  isLiveMode
-                    ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
-                    : 'bg-teal-50 text-teal-800 border-teal-200'
-                }`}
-              >
-                {isLiveMode ? 'Live Git' : 'Benchmark'}
-              </span>
+              {isLiveMode && (
+                <span className="text-[10px] font-semibold px-1.5 py-0.2 rounded-md border bg-emerald-50 text-emerald-800 border-emerald-200">
+                  Live Git
+                </span>
+              )}
             </div>
 
-            <div className="relative" ref={projectDropdownRef}>
+            <div className="relative" id="tour-project-selector" ref={projectDropdownRef}>
               <button
                 type="button"
                 onClick={() => setProjectDropdownOpen(!projectDropdownOpen)}
@@ -300,6 +292,7 @@ export default function Sidebar({
 
           {/* Ingest Repository Action Button */}
           <button
+            id="tour-ingest-btn"
             onClick={() => {
               if (onOpenConnectModal) onOpenConnectModal();
               if (onCloseMobile) onCloseMobile();
@@ -326,6 +319,7 @@ export default function Sidebar({
                 return (
                   <button
                     key={item.id}
+                    id={`tour-nav-${item.id}`}
                     onClick={() => {
                       onSelectTab(item.id);
                       if (onCloseMobile) onCloseMobile();
@@ -369,9 +363,11 @@ export default function Sidebar({
               <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
                 Handover Parties
               </span>
-              <span className="text-[10px] text-slate-400 font-mono">
-                {isLiveMode ? 'Live Git' : 'Benchmark'}
-              </span>
+              {isLiveMode && (
+                <span className="text-[10px] text-slate-400 font-mono">
+                  Live Git
+                </span>
+              )}
             </div>
             <div className="text-xs space-y-2 text-slate-600">
               <div className="flex items-center justify-between">
@@ -400,21 +396,25 @@ export default function Sidebar({
         <div className="p-3 border-t border-slate-200/90 space-y-2 bg-white relative">
           <div className="space-y-1">
             <button
-              onClick={onResetDemo}
-              disabled={resetting}
-              className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs text-slate-600 hover:text-rose-700 hover:bg-rose-50 transition cursor-pointer"
-              title="Reset benchmark state: clears answers and decision logs"
+              id="tour-how-it-works-btn"
+              type="button"
+              onClick={() => {
+                if (onStartTour) onStartTour();
+              }}
+              className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs font-semibold text-teal-800 bg-teal-50/80 hover:bg-teal-100/80 border border-teal-200/80 transition cursor-pointer shadow-2xs group"
+              title="Launch interactive walkthrough"
             >
               <div className="flex items-center gap-2">
-                <RotateCcw
-                  className={`w-3.5 h-3.5 ${resetting ? 'animate-spin text-rose-500' : 'text-slate-400'}`}
-                />
-                <span>Reset Benchmark State</span>
+                <Sparkles className="w-3.5 h-3.5 text-teal-600 shrink-0 transition-transform group-hover:scale-110" />
+                <span>How It Works</span>
               </div>
-              <span className="text-[10px] text-slate-400 font-mono">clean</span>
+              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-white border border-teal-300 text-teal-700 shadow-2xs">
+                Tour
+              </span>
             </button>
 
             <button
+              id="tour-engine-connectors-btn"
               onClick={onOpenSettings}
               className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs text-slate-600 hover:text-slate-900 hover:bg-slate-50 transition cursor-pointer"
             >
@@ -427,7 +427,7 @@ export default function Sidebar({
           </div>
 
           {/* User Account Profile */}
-          <div className="pt-2 border-t border-slate-100 relative" ref={userMenuRef}>
+          <div className="pt-2 border-t border-slate-100 relative" id="tour-user-menu" ref={userMenuRef}>
             <button
               type="button"
               onClick={() => setUserMenuOpen(!userMenuOpen)}

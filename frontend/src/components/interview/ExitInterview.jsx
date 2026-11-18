@@ -4,6 +4,7 @@ import {
   RotateCcw,
   Sparkles,
   RefreshCw,
+  Check,
 } from 'lucide-react';
 import PageHeader from '../common/PageHeader';
 import LoadingState from '../common/LoadingState';
@@ -20,8 +21,12 @@ export default function ExitInterview({ onAnswerSubmitted, focusArtifactId, acti
   const [savingId, setSavingId] = useState(null);
   const [clearingId, setClearingId] = useState(null);
   const [err, setErr] = useState(null);
-  const [secondsLeft, setSecondsLeft] = useState(15 * 60);
   const [categoryFilter, setCategoryFilter] = useState('all');
+
+  // Reload calibration state
+  const [reloading, setReloading] = useState(false);
+  const [reloadStep, setReloadStep] = useState('');
+  const [justReloaded, setJustReloaded] = useState(false);
 
   const loadQuestionsAndAnswers = async () => {
     setLoading(true);
@@ -33,9 +38,6 @@ export default function ExitInterview({ onAnswerSubmitted, focusArtifactId, acti
         echoApi.getInterviewAnswers(pId).catch(() => ({ answers: [] })),
       ]);
       setData(qData);
-      if (qData?.time_budget_minutes) {
-        setSecondsLeft(qData.time_budget_minutes * 60);
-      }
       if (aData && aData.answers) {
         const savedMap = {};
         const answersMap = {};
@@ -53,18 +55,30 @@ export default function ExitInterview({ onAnswerSubmitted, focusArtifactId, acti
     }
   };
 
+  const handleReloadQuestions = async () => {
+    if (reloading) return;
+    setReloading(true);
+    setJustReloaded(false);
+    setReloadStep('Analyzing tacit knowledge gaps & bus factor hotspots...');
+
+    try {
+      await loadQuestionsAndAnswers();
+      await new Promise((r) => setTimeout(r, 450));
+      setReloadStep('Calibrating prioritized architectural prompts & questions...');
+      await new Promise((r) => setTimeout(r, 400));
+      setJustReloaded(true);
+      setTimeout(() => setJustReloaded(false), 2400);
+    } catch (e) {
+      setErr(e.message);
+    } finally {
+      setReloading(false);
+      setReloadStep('');
+    }
+  };
+
   useEffect(() => {
     loadQuestionsAndAnswers();
   }, [activeProject?.id, refreshKey]);
-
-  // Countdown timer
-  useEffect(() => {
-    if (!data) return;
-    const interval = setInterval(() => {
-      setSecondsLeft((s) => Math.max(0, s - 1));
-    }, 1000);
-    return () => clearInterval(interval);
-  }, [data]);
 
   // If focusArtifactId was passed from Risk Map, scroll into view
   useEffect(() => {
@@ -154,20 +168,56 @@ export default function ExitInterview({ onAnswerSubmitted, focusArtifactId, acti
         badge="Evidence Grounded"
         actions={
           <button
-            onClick={loadQuestionsAndAnswers}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-700 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition shadow-2xs cursor-pointer"
+            onClick={handleReloadQuestions}
+            disabled={reloading || loading}
+            className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg transition-all duration-200 shadow-2xs cursor-pointer ${
+              reloading
+                ? 'bg-teal-50 text-teal-800 border border-teal-300 ring-2 ring-teal-500/20'
+                : justReloaded
+                ? 'bg-emerald-50 text-emerald-800 border border-emerald-300'
+                : 'text-slate-700 bg-white border border-slate-200 hover:bg-slate-50'
+            }`}
+            title="Calibrate and reload prioritized interview questions"
           >
-            <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin text-[#0EB8A0]' : 'text-slate-400'}`} />
-            <span>Reload Questions</span>
+            {justReloaded ? (
+              <Check className="w-3.5 h-3.5 text-emerald-600 animate-in zoom-in-50" />
+            ) : (
+              <RefreshCw className={`w-3.5 h-3.5 ${reloading ? 'animate-spin text-teal-600' : 'text-slate-400'}`} />
+            )}
+            <span>
+              {reloading
+                ? 'Calibrating Questions...'
+                : justReloaded
+                ? 'Questions Reloaded'
+                : 'Reload Questions'}
+            </span>
           </button>
         }
       />
 
-      {/* Progress & Countdown Timer Bar */}
+      {/* Reload Animation & Progress Banner */}
+      {reloading && (
+        <div className="p-3 bg-teal-50/90 border border-teal-200/90 rounded-2xl flex items-center justify-between text-xs text-teal-900 shadow-xs animate-in fade-in slide-in-from-top-1">
+          <div className="flex items-center gap-2.5">
+            <span className="relative flex h-2.5 w-2.5">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-teal-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-teal-600"></span>
+            </span>
+            <span className="font-semibold text-teal-950">{reloadStep}</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-[11px] font-mono text-teal-700">Calibrating prompts...</span>
+            <div className="w-20 h-1.5 bg-teal-200/70 rounded-full overflow-hidden">
+              <div className="w-full h-full bg-teal-600 animate-pulse"></div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Progress & Knowledge Extraction Bar */}
       <InterviewProgress
         totalQuestions={totalQuestions}
         answeredCount={answeredCount}
-        secondsLeft={secondsLeft}
         decisionCount={answeredCount}
       />
 

@@ -1,17 +1,13 @@
 import React from 'react';
-import { Clock, CheckCircle2, Sparkles } from 'lucide-react';
+import { CheckCircle2, Sparkles } from 'lucide-react';
 
 export default function InterviewProgress({
   totalQuestions = 6,
   answeredCount = 0,
-  secondsLeft = 15 * 60,
   decisionCount = 0,
 }) {
-  const mins = String(Math.floor(secondsLeft / 60)).padStart(2, '0');
-  const secs = String(secondsLeft % 60).padStart(2, '0');
   const pct = totalQuestions > 0 ? Math.round((answeredCount / totalQuestions) * 100) : 0;
   const remaining = Math.max(0, totalQuestions - answeredCount);
-  const isUrgent = secondsLeft < 120;
 
   return (
     <div className="bg-white rounded-xl border border-slate-200/90 p-5 shadow-xs">
@@ -25,9 +21,13 @@ export default function InterviewProgress({
             <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-teal-50 text-teal-800 border border-teal-200/80">
               {answeredCount} of {totalQuestions} answered ({pct}%)
             </span>
-            {remaining > 0 && (
+            {remaining > 0 ? (
               <span className="text-xs text-slate-400 font-medium">
                 · {remaining} remaining
+              </span>
+            ) : (
+              <span className="text-xs text-emerald-600 font-semibold">
+                · All questions completed
               </span>
             )}
           </div>
@@ -41,7 +41,7 @@ export default function InterviewProgress({
           </div>
         </div>
 
-        {/* Right: Decisions badge + Countdown Timer */}
+        {/* Right: Decisions badge + Status badge */}
         <div className="flex flex-wrap items-center gap-2 sm:gap-3 shrink-0">
           {/* Decisions logged badge */}
           {decisionCount > 0 && (
@@ -52,27 +52,10 @@ export default function InterviewProgress({
             </div>
           )}
 
-          {/* Countdown Timer */}
-          <div
-            className={`flex items-center gap-2.5 px-3.5 py-1.5 rounded-xl border transition ${
-              isUrgent
-                ? 'bg-rose-50 border-rose-200 text-rose-800'
-                : 'bg-slate-50 border-slate-200/80 text-slate-800'
-            }`}
-          >
-            <Clock
-              className={`w-4 h-4 ${
-                isUrgent ? 'text-rose-600 animate-pulse' : 'text-slate-400'
-              }`}
-            />
-            <div>
-              <div className="font-mono text-base font-bold leading-none">
-                {mins}:{secs}
-              </div>
-              <div className="text-[10px] text-slate-400 font-medium leading-none mt-0.5">
-                Session budget
-              </div>
-            </div>
+          {/* Session Status Badge */}
+          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-teal-50 border border-teal-200/80 text-teal-800 text-xs font-semibold">
+            <CheckCircle2 className="w-3.5 h-3.5 text-teal-600" />
+            <span>{pct === 100 ? 'All Captured' : 'Active Session'}</span>
           </div>
         </div>
       </div>

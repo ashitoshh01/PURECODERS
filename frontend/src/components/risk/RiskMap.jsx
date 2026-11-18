@@ -11,6 +11,7 @@ import {
   Users,
   FileText,
   Layers,
+  Check,
 } from 'lucide-react';
 import LoadingState from '../common/LoadingState';
 import ErrorBox from '../common/ErrorBox';
@@ -114,6 +115,11 @@ export default function RiskMap({ onNavigateToInterview, activeProject, refreshK
   const [rescanning, setRescanning] = useState(false);
   const [lastSyncTime, setLastSyncTime] = useState(new Date());
 
+  // Calibration state for Recalculate Scores
+  const [calibrating, setCalibrating] = useState(false);
+  const [calibrationStep, setCalibrationStep] = useState('');
+  const [justCalibrated, setJustCalibrated] = useState(false);
+
   const loadData = async (repoOverride = selectedRepoId) => {
     setLoading(true);
     setErr(null);
@@ -130,6 +136,27 @@ export default function RiskMap({ onNavigateToInterview, activeProject, refreshK
       setErr(e.message);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleRecalculate = async () => {
+    if (calibrating) return;
+    setCalibrating(true);
+    setJustCalibrated(false);
+    setCalibrationStep('Calibrating ownership weights & commit churn...');
+
+    try {
+      await loadData();
+      await new Promise((r) => setTimeout(r, 450));
+      setCalibrationStep('Recalculating documentation gaps & bus factor risks...');
+      await new Promise((r) => setTimeout(r, 400));
+      setJustCalibrated(true);
+      setTimeout(() => setJustCalibrated(false), 2400);
+    } catch (e) {
+      setErr(e.message);
+    } finally {
+      setCalibrating(false);
+      setCalibrationStep('');
     }
   };
 
@@ -287,20 +314,57 @@ export default function RiskMap({ onNavigateToInterview, activeProject, refreshK
             </button>
 
             <button
-              onClick={() => loadData()}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-700 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition shadow-2xs cursor-pointer"
+              onClick={handleRecalculate}
+              disabled={calibrating || loading}
+              className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg transition-all duration-200 shadow-2xs cursor-pointer ${
+                calibrating
+                  ? 'bg-teal-50 text-teal-800 border border-teal-300 ring-2 ring-teal-500/20'
+                  : justCalibrated
+                  ? 'bg-emerald-50 text-emerald-800 border border-emerald-300'
+                  : 'text-slate-700 bg-white border border-slate-200 hover:bg-slate-50'
+              }`}
+              title="Calibrate knowledge-risk scoring engine"
             >
-              <RefreshCw
-                className={`w-3.5 h-3.5 ${loading ? 'animate-spin text-[#0EB8A0]' : 'text-slate-400'}`}
-              />
-              <span>Recalculate Scores</span>
+              {justCalibrated ? (
+                <Check className="w-3.5 h-3.5 text-emerald-600 animate-in zoom-in-50" />
+              ) : (
+                <RefreshCw
+                  className={`w-3.5 h-3.5 ${calibrating ? 'animate-spin text-teal-600' : 'text-slate-400'}`}
+                />
+              )}
+              <span>
+                {calibrating
+                  ? 'Calibrating...'
+                  : justCalibrated
+                  ? 'Scores Calibrated'
+                  : 'Recalculate Scores'}
+              </span>
             </button>
           </div>
         }
       />
 
+      {/* Calibration Animation & Progress Banner */}
+      {calibrating && (
+        <div className="mb-4 p-3 bg-teal-50/90 border border-teal-200/90 rounded-2xl flex items-center justify-between text-xs text-teal-900 shadow-xs animate-in fade-in slide-in-from-top-1">
+          <div className="flex items-center gap-2.5">
+            <span className="relative flex h-2.5 w-2.5">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-teal-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-teal-600"></span>
+            </span>
+            <span className="font-semibold text-teal-950">{calibrationStep}</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-[11px] font-mono text-teal-700">Calibrating...</span>
+            <div className="w-20 h-1.5 bg-teal-200/70 rounded-full overflow-hidden">
+              <div className="w-full h-full bg-teal-600 animate-pulse"></div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Unified Analytics Summary Strip (With tiny time in bottom corner & continuous sync) */}
-      <div className="bg-white rounded-2xl border border-slate-200/90 p-4 sm:p-5 shadow-xs">
+      <div className={`bg-white rounded-2xl border border-slate-200/90 p-4 sm:p-5 shadow-xs ${calibrating ? 'opacity-70 scale-[0.99] transition-all duration-300' : 'transition-all duration-300'}`}>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5 sm:gap-4">
           {/* Card 1: High Risk Exposure */}
           <div className="relative overflow-hidden p-4 sm:p-5 rounded-2xl bg-gradient-to-br from-rose-50/80 via-white to-white border border-rose-200/90 hover:border-rose-300 shadow-xs hover:shadow-md transition-all duration-200 flex flex-col justify-between group">
@@ -429,8 +493,6 @@ export default function RiskMap({ onNavigateToInterview, activeProject, refreshK
             {/* Footer Breakdown */}
             <div className="mt-3.5 pt-2.5 border-t border-teal-100/70 flex items-center justify-between text-[11px]">
               <div className="flex items-center gap-1.5 text-slate-600">
-                <span className="font-semibold text-teal-800">Doc Deficit</span>
-                <span className="text-slate-300">·</span>
                 <span>Concentration</span>
               </div>
               <span className="text-[10px] font-bold px-1.5 py-0.2 rounded-md bg-teal-100/70 text-teal-800 border border-teal-200/60 shrink-0">

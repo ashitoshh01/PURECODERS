@@ -9,6 +9,8 @@ import {
   Sparkles,
   Repeat,
   RefreshCw,
+  Check,
+  Clock,
 } from 'lucide-react';
 import { echoApi } from '../../api';
 
@@ -169,7 +171,17 @@ export default function ReviewerPortal({ projectId, onItemsUpdated }) {
                         : 'bg-amber-100 text-amber-800 border-amber-300'
                     }`}
                   >
-                    {isApproved ? '✓ Approved & Locked' : '⏳ Pending Review'}
+                    {isApproved ? (
+                      <span className="inline-flex items-center gap-1">
+                        <Check className="w-3 h-3 text-emerald-700" />
+                        <span>Approved &amp; Locked</span>
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1">
+                        <Clock className="w-3 h-3 text-amber-700" />
+                        <span>Pending Review</span>
+                      </span>
+                    )}
                   </span>
                 </div>
 

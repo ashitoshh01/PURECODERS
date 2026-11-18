@@ -609,8 +609,8 @@ export function HelpModal({ isOpen, onClose }) {
             <div className="p-3.5 rounded-xl border border-slate-200 bg-white">
               <span className="text-xs font-bold text-teal-800">Step 4 (1:40 - 2:00): Ask Echo Trust Layer</span>
               <p className="text-xs text-slate-600 mt-1 leading-relaxed">
-                Ask: <strong className="text-slate-900">"Why is the retry limit 7?"</strong> → Grounded cited answer from interview.<br />
-                Ask: <strong className="text-slate-900">"What is the wifi password?"</strong> → <em>Honesty fallback with suggested contact: Priya</em>.
+                Ask: <strong className="text-slate-900">"Why was the payment retry limit changed to 7?"</strong> → Grounded cited answer from interview / PR.<br />
+                Ask: <strong className="text-slate-900">"Who is the domain expert for auth and sessions?"</strong> → <em>Instant contact resolution to Priya</em>.
               </p>
             </div>
           </div>

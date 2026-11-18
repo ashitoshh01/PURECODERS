@@ -5,9 +5,10 @@ export default function ChatInput({
   onSend,
   busy,
   suggestedQueries = [
-    'Why is the retry limit 7?',
-    'What is the wifi password?',
-    'How does nightly sync work?',
+    'Why was the payment retry limit changed to 7?',
+    'How does the nightly data sync job work?',
+    'What are the highest risk areas in Core Platform?',
+    'Who is the domain expert for auth and sessions?',
   ],
   showSuggestions = true,
 }) {
