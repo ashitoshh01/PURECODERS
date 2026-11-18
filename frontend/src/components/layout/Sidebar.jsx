@@ -16,6 +16,7 @@ import {
   Plus,
   Check,
   LogOut,
+  X,
 } from 'lucide-react';
 
 export default function Sidebar({
