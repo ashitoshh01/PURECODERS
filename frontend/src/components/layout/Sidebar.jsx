@@ -145,9 +145,9 @@ export default function Sidebar({
       )}
 
       <aside
-        className={`fixed top-0 bottom-0 left-0 z-50 w-64 bg-white border-r border-slate-200/90 flex flex-col transition-transform duration-200 ease-in-out lg:translate-x-0 ${
-          mobileOpen ? 'translate-x-0 shadow-xl' : '-translate-x-full'
-        }`}
+        className={`fixed top-0 bottom-0 left-0 z-50 w-64 bg-white border-r border-slate-200/90 flex flex-col transition-transform duration-200 ease-in-out ${
+          desktopSidebarOpen ? 'lg:translate-x-0' : 'lg:-translate-x-full'
+        } ${mobileOpen ? 'translate-x-0 shadow-xl' : '-translate-x-full'}`}
         aria-label="Main navigation"
       >
         {/* Brand / Logo Header */}
@@ -178,14 +178,17 @@ export default function Sidebar({
               </p>
             </div>
           </div>
-          {/* Mobile close button */}
+          {/* Hamburger toggle button to collapse sidebar */}
           <button
-            onClick={onCloseMobile}
-            className="p-1.5 rounded-lg text-slate-500 hover:text-slate-800 hover:bg-slate-100 transition cursor-pointer lg:hidden"
-            aria-label="Close navigation sidebar"
-            title="Close sidebar"
+            onClick={() => {
+              if (onToggleSidebar) onToggleSidebar();
+              if (onCloseMobile) onCloseMobile();
+            }}
+            className="p-1.5 rounded-lg text-slate-500 hover:text-slate-800 hover:bg-slate-100 transition cursor-pointer"
+            aria-label="Collapse navigation sidebar"
+            title="Collapse sidebar"
           >
-            <X className="w-5 h-5" />
+            <Menu className="w-5 h-5" />
           </button>
         </div>
 
