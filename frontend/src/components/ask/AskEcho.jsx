@@ -1,41 +1,47 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
   Sparkles,
-  RefreshCw,
-  CheckCircle2,
-  X,
-  Key,
   Bot,
-  SlidersHorizontal,
-  ChevronDown,
-  Copy,
-  Check,
-  Database,
-  HelpCircle,
+  Plus,
+  History,
+  Trash2,
+  X,
+  MessageSquare,
+  Clock,
   RotateCcw,
-  GitBranch,
-  Layers,
-  ShieldCheck,
 } from 'lucide-react';
 import ChatMessage from './ChatMessage';
 import ChatInput from './ChatInput';
 import { echoApi } from '../../api';
 
+function formatTimeAgo(isoString) {
+  if (!isoString) return '';
+  try {
+    const date = new Date(isoString);
+    const now = new Date();
+    const diffSecs = Math.floor((now - date) / 1000);
+    if (diffSecs < 60) return 'Just now';
+    const diffMins = Math.floor(diffSecs / 60);
+    if (diffMins < 60) return `${diffMins}m ago`;
+    const diffHours = Math.floor(diffMins / 60);
+    if (diffHours < 24) return `${diffHours}h ago`;
+    const diffDays = Math.floor(diffHours / 24);
+    if (diffDays < 7) return `${diffDays}d ago`;
+    return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+  } catch {
+    return '';
+  }
+}
+
 export default function AskEcho({ activeProject, successor, refreshKey }) {
   const [messages, setMessages] = useState([]);
   const [busy, setBusy] = useState(false);
   const [loadingHistory, setLoadingHistory] = useState(true);
-  const [aiStatus, setAiStatus] = useState(null);
-  const [showConfigModal, setShowConfigModal] = useState(false);
-  const [showScopeModal, setShowScopeModal] = useState(false);
-  const [optionsOpen, setOptionsOpen] = useState(false);
-  const [showSuggestions, setShowSuggestions] = useState(true);
-  const [copiedTranscript, setCopiedTranscript] = useState(false);
-  const [newKey, setNewKey] = useState('');
-  const [savingKey, setSavingKey] = useState(false);
-  const [saveSuccess, setSaveSuccess] = useState(false);
+  const [conversations, setConversations] = useState([]);
+  const [activeConvId, setActiveConvId] = useState(null);
+  const [activeConvTitle, setActiveConvTitle] = useState('');
+  const [historyOpen, setHistoryOpen] = useState(false);
   const scrollRef = useRef(null);
-  const menuRef = useRef(null);
 
   const successorName = successor?.name || 'Successor';
 
@@ -48,24 +54,35 @@ export default function AskEcho({ activeProject, successor, refreshKey }) {
     is_ai: true,
   };
 
-  // Close dropdown on outside click
-  useEffect(() => {
-    const handleOutsideClick = (e) => {
-      if (menuRef.current && !menuRef.current.contains(e.target)) {
-        setOptionsOpen(false);
-      }
-    };
-    if (optionsOpen) {
-      document.addEventListener('mousedown', handleOutsideClick);
-    }
-    return () => document.removeEventListener('mousedown', handleOutsideClick);
-  }, [optionsOpen]);
-
-  const loadConversationHistory = async () => {
-    setLoadingHistory(true);
+  const loadConversationsList = async () => {
     try {
       const res = await echoApi.getConversations(activeProject?.id);
-      if (res && res.messages && res.messages.length > 0) {
+      if (res && res.conversations) {
+        setConversations(res.conversations);
+      }
+      return res;
+    } catch (e) {
+      console.warn('Failed to load conversations list:', e);
+      return null;
+    }
+  };
+
+  const loadInitialChat = async () => {
+    setLoadingHistory(true);
+    try {
+      const res = await loadConversationsList();
+      if (res && res.conversations && res.conversations.length > 0) {
+        // Load the latest conversation by default
+        const latest = res.conversations[0];
+        const detail = await echoApi.getConversation(latest.id);
+        if (detail && detail.messages && detail.messages.length > 0) {
+          setMessages(detail.messages);
+          setActiveConvId(latest.id);
+          setActiveConvTitle(latest.title);
+        } else {
+          setMessages([defaultGreeting]);
+        }
+      } else if (res && res.messages && res.messages.length > 0) {
         setMessages(res.messages);
       } else {
         setMessages([defaultGreeting]);
@@ -77,23 +94,54 @@ export default function AskEcho({ activeProject, successor, refreshKey }) {
     }
   };
 
-  const loadAiStatus = async () => {
-    try {
-      const st = await echoApi.getAiStatus();
-      setAiStatus(st);
-    } catch (e) {
-      console.error('Failed to load AI status:', e);
-    }
-  };
-
   useEffect(() => {
-    loadConversationHistory();
-    loadAiStatus();
+    loadInitialChat();
   }, [activeProject?.id, refreshKey]);
 
   useEffect(() => {
     scrollRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, busy]);
+
+  const handleSelectConversation = async (convId) => {
+    setBusy(true);
+    try {
+      const res = await echoApi.getConversation(convId);
+      if (res && res.messages) {
+        setMessages(res.messages.length > 0 ? res.messages : [defaultGreeting]);
+        setActiveConvId(convId);
+        setActiveConvTitle(res.title || 'Conversation');
+      }
+      if (window.innerWidth < 640) {
+        setHistoryOpen(false);
+      }
+    } catch (err) {
+      console.error('Failed to load conversation:', err);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleNewChat = () => {
+    setActiveConvId(null);
+    setActiveConvTitle('');
+    setMessages([defaultGreeting]);
+    if (window.innerWidth < 640) {
+      setHistoryOpen(false);
+    }
+  };
+
+  const handleDeleteConversation = async (convId, e) => {
+    e.stopPropagation();
+    try {
+      await echoApi.deleteConversation(convId);
+      if (activeConvId === convId) {
+        handleNewChat();
+      }
+      loadConversationsList();
+    } catch (err) {
+      console.error('Failed to delete conversation:', err);
+    }
+  };
 
   const handleSend = async (queryText) => {
     if (!queryText.trim() || busy) return;
@@ -103,8 +151,20 @@ export default function AskEcho({ activeProject, successor, refreshKey }) {
     setBusy(true);
 
     try {
-      const response = await echoApi.askEcho(queryText, successorName, activeProject?.id);
+      const response = await echoApi.askEcho(
+        queryText,
+        successorName,
+        activeProject?.id,
+        activeConvId
+      );
       setMessages((prev) => [...prev, { role: 'echo', ...response }]);
+      if (response.conversation_id) {
+        setActiveConvId(response.conversation_id);
+      }
+      if (response.conversation_title && !activeConvTitle) {
+        setActiveConvTitle(response.conversation_title);
+      }
+      loadConversationsList();
     } catch (e) {
       setMessages((prev) => [
         ...prev,
@@ -118,45 +178,6 @@ export default function AskEcho({ activeProject, successor, refreshKey }) {
       ]);
     } finally {
       setBusy(false);
-    }
-  };
-
-  const clearChat = () => {
-    setMessages([defaultGreeting]);
-  };
-
-  const handleCopyTranscript = async () => {
-    try {
-      const formatted = messages
-        .map((m) => {
-          const author = m.role === 'user' ? 'You' : 'Echo';
-          const body = m.role === 'user' ? m.text : m.answer || m.echo_says || m.text;
-          return `### ${author}\n${body}\n`;
-        })
-        .join('\n---\n\n');
-
-      await navigator.clipboard.writeText(formatted);
-      setCopiedTranscript(true);
-      setTimeout(() => setCopiedTranscript(false), 2500);
-    } catch (err) {
-      console.error('Failed to copy transcript:', err);
-    }
-  };
-
-  const handleSaveKey = async (e) => {
-    e?.preventDefault();
-    if (!newKey.trim()) return;
-    setSavingKey(true);
-    try {
-      const updated = await echoApi.updateAiConfig(newKey.trim());
-      setAiStatus(updated);
-      setSaveSuccess(true);
-      setNewKey('');
-      setTimeout(() => setSaveSuccess(false), 3000);
-    } catch (err) {
-      alert(`Failed to save key: ${err.message}`);
-    } finally {
-      setSavingKey(false);
     }
   };
 
@@ -177,400 +198,177 @@ export default function AskEcho({ activeProject, successor, refreshKey }) {
       ];
 
   return (
-    <div className="w-full h-[calc(100vh-9.5rem)] flex flex-col fade-in">
-      {/* Clean, Streamlined Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-200/80">
-        <div className="flex items-center gap-3">
-          <div className="relative w-10 h-10 rounded-2xl bg-[#071126] border border-slate-700/60 text-[#18C6B0] flex items-center justify-center shadow-xs shrink-0">
-            <Bot className="w-5 h-5" />
-            <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-emerald-500 ring-2 ring-white" />
+    <div className="w-full h-full flex flex-col bg-white overflow-hidden fade-in relative">
+      {/* ChatGPT-Style Top Header Bar */}
+      <header className="h-14 px-4 sm:px-6 border-b border-slate-100 bg-white/95 backdrop-blur-sm flex items-center justify-between shrink-0 z-10">
+        <div className="flex items-center gap-2.5 min-w-0">
+          <div className="w-7 h-7 rounded-lg bg-[#071126] text-[#18C6B0] flex items-center justify-center font-bold shadow-xs shrink-0">
+            <Bot className="w-4 h-4" />
           </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <h1 className="text-base sm:text-lg font-bold text-slate-900 tracking-tight">
-                Ask Echo
-              </h1>
-              <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-teal-50 text-teal-800 border border-teal-200">
-                Trust Layer
-              </span>
-              <div
-                className={`hidden sm:inline-flex items-center gap-1.5 px-2.5 py-0.5 text-[11px] font-semibold rounded-full border ${
-                  aiStatus?.is_configured
-                    ? 'bg-purple-50 text-purple-800 border-purple-200'
-                    : 'bg-amber-50 text-amber-800 border-amber-200'
-                }`}
-              >
-                <span
-                  className={`w-1.5 h-1.5 rounded-full ${
-                    aiStatus?.is_configured ? 'bg-purple-600 animate-pulse' : 'bg-amber-500'
-                  }`}
-                />
-                <span>{aiStatus?.is_configured ? 'ASI:One Grounded' : 'ASI:One: Set Key'}</span>
-              </div>
-            </div>
-            <p className="text-xs text-slate-500 leading-tight mt-0.5">
-              Retrieval-first Q&A grounded in verified commits, AST analysis, and exit interviews
-            </p>
-          </div>
-        </div>
-
-        {/* Clean Options & Features Dropdown Menu */}
-        <div className="relative shrink-0 flex items-center gap-2" ref={menuRef}>
-          <button
-            onClick={() => setOptionsOpen(!optionsOpen)}
-            className="inline-flex items-center gap-2 px-3.5 py-2 text-xs font-semibold text-slate-700 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 transition shadow-2xs cursor-pointer focus:outline-none"
-            aria-label="Features and assistant options"
-          >
-            <SlidersHorizontal className="w-3.5 h-3.5 text-slate-500" />
-            <span>Options &amp; Features</span>
-            <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
-          </button>
-
-          {/* Elevated Dropdown Menu Panel */}
-          {optionsOpen && (
-            <div className="absolute right-0 top-full mt-2 w-72 rounded-2xl bg-white border border-slate-200 shadow-xl shadow-slate-900/10 z-50 p-2 space-y-1 fade-in">
-              {/* ASI:One AI Settings */}
-              <button
-                onClick={() => {
-                  setShowConfigModal(true);
-                  setOptionsOpen(false);
-                }}
-                className="w-full flex items-start gap-2.5 p-2.5 rounded-xl hover:bg-slate-50 transition text-left cursor-pointer group"
-              >
-                <div className="w-7 h-7 rounded-lg bg-purple-50 border border-purple-200 text-purple-700 flex items-center justify-center shrink-0 mt-0.5">
-                  <Sparkles className="w-3.5 h-3.5" />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <div className="text-xs font-bold text-slate-900 flex items-center justify-between">
-                    <span>ASI:One AI Engine</span>
-                    <span
-                      className={`text-[10px] font-mono font-semibold px-1.5 py-0.2 rounded ${
-                        aiStatus?.is_configured
-                          ? 'bg-emerald-50 text-emerald-800'
-                          : 'bg-amber-50 text-amber-800'
-                      }`}
-                    >
-                      {aiStatus?.is_configured ? 'Active' : 'Setup'}
-                    </span>
-                  </div>
-                  <p className="text-[11px] text-slate-500 truncate mt-0.5">
-                    Model {aiStatus?.model || 'asi1'} · Update API key
-                  </p>
-                </div>
-              </button>
-
-              {/* Clear Chat */}
-              <button
-                onClick={() => {
-                  clearChat();
-                  setOptionsOpen(false);
-                }}
-                className="w-full flex items-start gap-2.5 p-2.5 rounded-xl hover:bg-slate-50 transition text-left cursor-pointer group"
-              >
-                <div className="w-7 h-7 rounded-lg bg-slate-100 border border-slate-200 text-slate-600 flex items-center justify-center shrink-0 mt-0.5">
-                  <RotateCcw className="w-3.5 h-3.5 text-slate-500" />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <div className="text-xs font-bold text-slate-900">Clear Conversation</div>
-                  <p className="text-[11px] text-slate-500 truncate mt-0.5">
-                    Reset session back to initial greeting
-                  </p>
-                </div>
-              </button>
-
-              {/* Copy Transcript */}
-              <button
-                onClick={() => {
-                  handleCopyTranscript();
-                  setOptionsOpen(false);
-                }}
-                className="w-full flex items-start gap-2.5 p-2.5 rounded-xl hover:bg-slate-50 transition text-left cursor-pointer group"
-              >
-                <div className="w-7 h-7 rounded-lg bg-slate-100 border border-slate-200 text-slate-600 flex items-center justify-center shrink-0 mt-0.5">
-                  <Copy className="w-3.5 h-3.5 text-slate-500" />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <div className="text-xs font-bold text-slate-900">Copy Transcript</div>
-                  <p className="text-[11px] text-slate-500 truncate mt-0.5">
-                    Export questions &amp; answers to clipboard
-                  </p>
-                </div>
-              </button>
-
-              {/* Grounding Scope */}
-              <button
-                onClick={() => {
-                  setShowScopeModal(true);
-                  setOptionsOpen(false);
-                }}
-                className="w-full flex items-start gap-2.5 p-2.5 rounded-xl hover:bg-slate-50 transition text-left cursor-pointer group"
-              >
-                <div className="w-7 h-7 rounded-lg bg-teal-50 border border-teal-200 text-teal-800 flex items-center justify-center shrink-0 mt-0.5">
-                  <Database className="w-3.5 h-3.5" />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <div className="text-xs font-bold text-slate-900">Grounding Scope</div>
-                  <p className="text-[11px] text-slate-500 truncate mt-0.5">
-                    Inspect verified sources &amp; commits
-                  </p>
-                </div>
-              </button>
-
-              {/* Toggle Starter Suggestions */}
-              <button
-                onClick={() => {
-                  setShowSuggestions(!showSuggestions);
-                  setOptionsOpen(false);
-                }}
-                className="w-full flex items-start gap-2.5 p-2.5 rounded-xl hover:bg-slate-50 transition text-left cursor-pointer group"
-              >
-                <div className="w-7 h-7 rounded-lg bg-slate-100 border border-slate-200 text-slate-600 flex items-center justify-center shrink-0 mt-0.5">
-                  <HelpCircle className="w-3.5 h-3.5 text-slate-500" />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <div className="text-xs font-bold text-slate-900 flex items-center justify-between">
-                    <span>Starter Questions</span>
-                    <span className="text-[10px] text-slate-400 font-mono">
-                      {showSuggestions ? 'Visible' : 'Hidden'}
-                    </span>
-                  </div>
-                  <p className="text-[11px] text-slate-500 truncate mt-0.5">
-                    Toggle quick prompt chips
-                  </p>
-                </div>
-              </button>
-            </div>
+          <span className="font-bold text-slate-900 text-sm sm:text-base tracking-tight shrink-0">Echo</span>
+          <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-teal-50 text-teal-800 border border-teal-200/80 shrink-0">
+            ASI:One Grounded
+          </span>
+          {activeConvTitle && (
+            <span className="hidden md:inline text-xs text-slate-500 font-medium truncate max-w-xs pl-2 border-l border-slate-200">
+              {activeConvTitle}
+            </span>
           )}
         </div>
-      </div>
 
-      {/* Chat Studio Area (Max Big Size) */}
-      <div className="w-full flex-1 flex flex-col bg-white rounded-2xl border border-slate-200/90 shadow-xs overflow-hidden mt-3">
-        {/* Copy Notification Toast */}
-        {copiedTranscript && (
-          <div className="bg-emerald-50 border-b border-emerald-200 px-4 py-2 text-xs font-semibold text-emerald-800 flex items-center gap-2 animate-fadeIn">
-            <Check className="w-4 h-4 text-emerald-600" />
-            <span>Chat transcript copied to clipboard!</span>
-          </div>
-        )}
+        {/* Top Action Controls: New Chat & History (Options removed as requested) */}
+        <div className="flex items-center gap-2 shrink-0">
+          {/* New Chat Button */}
+          <button
+            onClick={handleNewChat}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:text-slate-900 bg-slate-50 hover:bg-slate-100 border border-slate-200/80 rounded-xl transition cursor-pointer"
+            title="Start a new conversation"
+          >
+            <Plus className="w-3.5 h-3.5 text-slate-500" />
+            <span className="hidden sm:inline">New Chat</span>
+          </button>
 
-        {/* Messages Area (Max width & vertical space) */}
-        <div className="flex-1 overflow-y-auto px-4 sm:px-8 py-6 space-y-6">
+          {/* History Button (Replacing Options) */}
+          <button
+            onClick={() => setHistoryOpen(!historyOpen)}
+            className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-xl border transition cursor-pointer ${
+              historyOpen
+                ? 'bg-teal-50 text-teal-900 border-teal-300 shadow-2xs'
+                : 'text-slate-700 hover:text-slate-900 bg-white hover:bg-slate-50 border-slate-200'
+            }`}
+            title="Open chat history"
+          >
+            <History className="w-3.5 h-3.5 text-teal-600" />
+            <span>History</span>
+            {conversations.length > 0 && (
+              <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-slate-100 text-slate-600 font-mono font-bold">
+                {conversations.length}
+              </span>
+            )}
+          </button>
+        </div>
+      </header>
+
+      {/* Main Chat Canvas with Messages */}
+      <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-6 scroll-smooth">
+        <div className="max-w-3xl mx-auto w-full space-y-6">
           {messages.map((m, idx) => (
             <ChatMessage key={m.id || idx} message={m} />
           ))}
 
           {busy && (
-            <div className="flex items-center gap-2.5 p-3.5 rounded-2xl bg-teal-50 border border-teal-200/80 text-teal-950 text-xs w-fit shadow-xs animate-pulse">
+            <div className="flex items-center gap-3 p-3.5 rounded-2xl bg-teal-50/70 border border-teal-200/80 text-teal-950 text-xs w-fit shadow-2xs animate-pulse">
               <Bot className="w-4 h-4 text-[#0EB8A0] animate-bounce" />
               <span className="font-semibold">
-                Echo is consulting ASI:One AI with full project context &amp; commits...
+                Echo is consulting ASI:One AI with verified git context &amp; commits...
               </span>
             </div>
           )}
 
           <div ref={scrollRef} />
         </div>
+      </div>
 
-        {/* Expansive Chat Input Container */}
-        <div className="p-3 sm:p-4 bg-slate-50/70 border-t border-slate-200/80">
+      {/* Fixed Bottom Input Dock */}
+      <div className="shrink-0 bg-gradient-to-t from-white via-white to-transparent pt-3 pb-4 px-4 sm:px-6">
+        <div className="max-w-3xl mx-auto w-full">
           <ChatInput
             onSend={handleSend}
             busy={busy}
             suggestedQueries={suggestedQueries}
-            showSuggestions={showSuggestions}
+            showSuggestions={messages.length <= 1}
           />
         </div>
       </div>
 
-      {/* ASI:One Configuration Modal */}
-      {showConfigModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-xs p-4 animate-fadeIn">
-          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-200">
-            <div className="flex items-start justify-between pb-3 border-b border-slate-100">
-              <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-xl bg-purple-50 text-purple-700 border border-purple-200 flex items-center justify-center font-bold">
-                  <Sparkles className="w-4 h-4" />
-                </div>
-                <div>
-                  <h3 className="font-bold text-slate-900 text-sm">ASI:One AI Engine</h3>
-                  <p className="text-xs text-slate-500">Autonomous intelligence by Fetch.ai / ASI Alliance</p>
-                </div>
-              </div>
+      {/* Slide-over Chat History Panel */}
+      {historyOpen && (
+        <aside
+          className="absolute top-14 bottom-0 right-0 z-30 w-full sm:w-80 md:w-96 bg-white/95 backdrop-blur-md border-l border-slate-200 shadow-2xl flex flex-col animate-in slide-in-from-right-4 duration-200"
+          aria-label="Chat history"
+        >
+          {/* History Header */}
+          <div className="p-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+            <div className="flex items-center gap-2">
+              <History className="w-4 h-4 text-teal-600" />
+              <h3 className="text-sm font-bold text-slate-900">Chat History</h3>
+              <span className="text-[11px] font-mono text-slate-400">({conversations.length})</span>
+            </div>
+            <div className="flex items-center gap-1.5">
               <button
-                onClick={() => setShowConfigModal(false)}
-                className="p-1 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition cursor-pointer"
-                aria-label="Close modal"
+                onClick={handleNewChat}
+                className="p-1.5 rounded-lg text-slate-600 hover:text-teal-700 hover:bg-teal-50 transition cursor-pointer"
+                title="Start new conversation"
+              >
+                <Plus className="w-4 h-4" />
+              </button>
+              <button
+                onClick={() => setHistoryOpen(false)}
+                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition cursor-pointer"
+                aria-label="Close history panel"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
+          </div>
 
-            <div className="space-y-4 my-4 text-xs text-slate-600">
-              <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200/80 space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-slate-500">Provider &amp; Model:</span>
-                  <span className="font-mono font-bold text-slate-900 bg-white px-2 py-0.5 rounded border border-slate-200">
-                    {aiStatus?.model || 'asi1'}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-slate-500">API Endpoint:</span>
-                  <span className="font-mono text-[11px] text-slate-600">
-                    {aiStatus?.base_url || 'https://api.asi1.ai/v1'}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-slate-500">Status:</span>
-                  <span className="inline-flex items-center gap-1 font-bold text-emerald-700">
-                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-                    <span>{aiStatus?.is_configured ? 'Active & Grounded' : 'Needs API Key'}</span>
-                  </span>
-                </div>
-                {aiStatus?.masked_key && (
-                  <div className="flex items-center justify-between">
-                    <span className="text-slate-500">Loaded Key:</span>
-                    <span className="font-mono text-purple-800 bg-purple-50 px-2 py-0.5 rounded border border-purple-200 text-[11px] font-semibold">
-                      {aiStatus.masked_key}
-                    </span>
-                  </div>
-                )}
-              </div>
-
-              <div className="p-3.5 rounded-xl bg-purple-50/60 border border-purple-100 text-purple-950">
-                <p className="font-bold mb-1">Environment File (.env)</p>
-                <p className="text-[11px] text-purple-800 leading-relaxed">
-                  Your key is saved in the project's root <code className="bg-purple-100 px-1 py-0.5 rounded font-mono font-semibold">.env</code> file under <code className="bg-purple-100 px-1 py-0.5 rounded font-mono font-semibold">ASI1_API_KEY</code>. You can paste or update it directly in the file, or use the form below.
+          {/* History Conversations List */}
+          <div className="flex-1 overflow-y-auto p-3 space-y-1.5">
+            {conversations.length === 0 ? (
+              <div className="py-16 px-4 text-center">
+                <MessageSquare className="w-8 h-8 text-slate-300 mx-auto mb-2" />
+                <p className="text-xs font-semibold text-slate-700">No previous chats yet</p>
+                <p className="text-[11px] text-slate-400 mt-1 max-w-xs mx-auto">
+                  Ask a question to start your first grounded conversation with Echo.
                 </p>
               </div>
-
-              <form onSubmit={handleSaveKey} className="space-y-2">
-                <label className="block font-semibold text-slate-700">Update ASI:One API Key:</label>
-                <div className="flex gap-2">
-                  <input
-                    type="password"
-                    value={newKey}
-                    onChange={(e) => setNewKey(e.target.value)}
-                    placeholder="sk_..."
-                    className="flex-1 px-3 py-2 rounded-xl border border-slate-200 focus:outline-none focus:border-[#18C6B0] text-xs font-mono"
-                  />
-                  <button
-                    type="submit"
-                    disabled={savingKey || !newKey.trim()}
-                    className="px-3.5 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-semibold text-xs transition disabled:opacity-50 cursor-pointer"
+            ) : (
+              conversations.map((c) => {
+                const isSelected = activeConvId === c.id;
+                return (
+                  <div
+                    key={c.id}
+                    onClick={() => handleSelectConversation(c.id)}
+                    className={`group relative p-3 rounded-2xl border transition cursor-pointer ${
+                      isSelected
+                        ? 'bg-teal-50/80 border-teal-200/90 text-teal-950 shadow-xs'
+                        : 'bg-white hover:bg-slate-50 border-slate-100 hover:border-slate-200 text-slate-700'
+                    }`}
                   >
-                    {savingKey ? 'Saving...' : 'Save'}
-                  </button>
-                </div>
-                {saveSuccess && (
-                  <p className="text-[11px] text-emerald-700 font-bold">✓ Key successfully saved to .env!</p>
-                )}
-              </form>
-            </div>
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0 flex-1">
+                        <div className="text-xs font-bold truncate text-slate-900 group-hover:text-teal-900">
+                          {c.title || 'Untitled Conversation'}
+                        </div>
+                        {c.preview && (
+                          <p className="text-[11px] text-slate-400 line-clamp-1 mt-0.5 font-normal">
+                            {c.preview}
+                          </p>
+                        )}
+                        <div className="flex items-center gap-2 mt-1.5 text-[10px] text-slate-400 font-medium">
+                          <span>{c.message_count ? `${c.message_count} msgs` : 'Chat'}</span>
+                          <span>·</span>
+                          <span>{formatTimeAgo(c.updated_at || c.created_at)}</span>
+                        </div>
+                      </div>
 
-            <div className="pt-3 border-t border-slate-100 flex justify-end">
-              <button
-                onClick={() => setShowConfigModal(false)}
-                className="px-4 py-2 rounded-xl bg-slate-900 text-white text-xs font-semibold hover:bg-slate-800 transition cursor-pointer"
-              >
-                Close
-              </button>
-            </div>
+                      {/* Delete Conversation Button */}
+                      <button
+                        type="button"
+                        onClick={(e) => handleDeleteConversation(c.id, e)}
+                        className="opacity-0 group-hover:opacity-100 p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition cursor-pointer shrink-0"
+                        title="Delete conversation"
+                        aria-label="Delete conversation"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                );
+              })
+            )}
           </div>
-        </div>
-      )}
-
-      {/* Grounding Scope & Evidence Sources Modal */}
-      {showScopeModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-xs p-4 animate-fadeIn">
-          <div className="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-slate-200">
-            <div className="flex items-start justify-between pb-3 border-b border-slate-100">
-              <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-xl bg-teal-50 text-teal-800 border border-teal-200 flex items-center justify-center font-bold">
-                  <Database className="w-4 h-4" />
-                </div>
-                <div>
-                  <h3 className="font-bold text-slate-900 text-sm">Grounded Knowledge Scope</h3>
-                  <p className="text-xs text-slate-500">Verified artifacts used for deterministic Q&amp;A</p>
-                </div>
-              </div>
-              <button
-                onClick={() => setShowScopeModal(false)}
-                className="p-1 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition cursor-pointer"
-                aria-label="Close modal"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            <div className="space-y-3.5 my-4 text-xs text-slate-600">
-              <div className="p-3 rounded-xl bg-slate-50 border border-slate-200/80 space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-slate-500">Active Workspace:</span>
-                  <span className="font-bold text-slate-900 font-mono">
-                    {activeProject?.name || 'PURECODERS'}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-slate-500">Grounding Trust Tier:</span>
-                  <span className="inline-flex items-center gap-1 font-semibold text-teal-800 bg-teal-50 px-2 py-0.5 rounded-full border border-teal-200">
-                    <ShieldCheck className="w-3.5 h-3.5 text-[#0EB8A0]" />
-                    <span>Deterministic First (No Hallucinations)</span>
-                  </span>
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 block">
-                  Indexed Data Layers:
-                </span>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
-                  <div className="p-2.5 rounded-xl border border-slate-200 bg-white flex items-center gap-2">
-                    <GitBranch className="w-4 h-4 text-[#0EB8A0]" />
-                    <div>
-                      <div className="font-bold text-slate-800">Git Commits &amp; Diffs</div>
-                      <div className="text-[10px] text-slate-400">Authorship, timestamps &amp; blame</div>
-                    </div>
-                  </div>
-                  <div className="p-2.5 rounded-xl border border-slate-200 bg-white flex items-center gap-2">
-                    <Layers className="w-4 h-4 text-[#0EB8A0]" />
-                    <div>
-                      <div className="font-bold text-slate-800">AST Knowledge Graph</div>
-                      <div className="text-[10px] text-slate-400">Dependency calls &amp; imports</div>
-                    </div>
-                  </div>
-                  <div className="p-2.5 rounded-xl border border-slate-200 bg-white flex items-center gap-2">
-                    <Bot className="w-4 h-4 text-[#0EB8A0]" />
-                    <div>
-                      <div className="font-bold text-slate-800">Exit Interview Notes</div>
-                      <div className="text-[10px] text-slate-400">Captured tacit knowledge</div>
-                    </div>
-                  </div>
-                  <div className="p-2.5 rounded-xl border border-slate-200 bg-white flex items-center gap-2">
-                    <CheckCircle2 className="w-4 h-4 text-[#0EB8A0]" />
-                    <div>
-                      <div className="font-bold text-slate-800">Decisions &amp; Landmines</div>
-                      <div className="text-[10px] text-slate-400">Extracted architectural rationale</div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div className="p-3 rounded-xl bg-teal-50/70 border border-teal-200 text-teal-950 text-[11px] leading-relaxed">
-                Echo never fabricates answers when information is absent. If a question addresses ungrounded topics (e.g. unknown WiFi passwords or untracked legacy APIs), Echo triggers the <strong>Honesty Fallback</strong> and routes you to the relevant human expert.
-              </div>
-            </div>
-
-            <div className="pt-3 border-t border-slate-100 flex justify-end">
-              <button
-                onClick={() => setShowScopeModal(false)}
-                className="px-4 py-2 rounded-xl bg-slate-900 text-white text-xs font-semibold hover:bg-slate-800 transition cursor-pointer"
-              >
-                Close
-              </button>
-            </div>
-          </div>
-        </div>
+        </aside>
       )}
     </div>
   );

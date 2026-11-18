@@ -165,51 +165,48 @@ export default function ChatMessage({ message }) {
     ? message.text
     : (message.answer || message.echo_says || message.text);
 
-  return (
-    <div className={`flex gap-3 text-xs leading-relaxed ${isUser ? 'justify-end' : 'justify-start'} fade-in`}>
-      {/* Echo Robot Avatar */}
-      {!isUser && (
-        <div className="w-8 h-8 rounded-xl bg-[#071126] border border-slate-700/50 text-[#18C6B0] flex items-center justify-center shrink-0 shadow-2xs mt-0.5">
-          <Bot className="w-4.5 h-4.5" />
+  if (isUser) {
+    return (
+      <div className="flex justify-end fade-in">
+        <div className="max-w-[85%] sm:max-w-[75%] rounded-3xl bg-slate-100 hover:bg-slate-200/70 text-slate-900 px-5 py-3 text-sm leading-relaxed font-normal shadow-2xs">
+          <FormattedContent text={content} isUser={true} />
         </div>
-      )}
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex items-start gap-3.5 fade-in">
+      {/* Echo Robot Avatar */}
+      <div className="w-7 h-7 rounded-full bg-[#071126] text-[#18C6B0] flex items-center justify-center shrink-0 mt-1 shadow-2xs">
+        <Bot className="w-4 h-4" />
+      </div>
 
       {/* Message Content Container */}
-      <div
-        className={`max-w-[88%] sm:max-w-[80%] rounded-2xl p-4 sm:p-5 transition shadow-xs ${
-          isUser
-            ? 'bg-[#071126] text-white rounded-tr-xs'
-            : isUnknown
-            ? 'bg-amber-50/70 border border-amber-200 text-slate-800 rounded-tl-xs'
-            : 'bg-white border border-slate-200/90 text-slate-800 rounded-tl-xs'
-        }`}
-      >
+      <div className="flex-1 min-w-0 space-y-2.5 pt-0.5 text-sm leading-relaxed text-slate-800">
         {/* ASI:One AI Header Badge */}
-        {!isUser && isAi && !isUnknown && (
-          <div className="flex items-center justify-between pb-2.5 mb-3 border-b border-slate-100">
-            <div className="flex items-center gap-1.5 text-purple-700 font-bold text-[11px]">
-              <Sparkles className="w-3.5 h-3.5 text-purple-600 animate-pulse" />
-              <span>ASI:One AI Engine</span>
-              {message.ai_model && (
-                <span className="font-mono text-[10px] px-1.5 py-0.5 rounded-md bg-purple-100 text-purple-800 border border-purple-200 font-semibold">
-                  {message.ai_model}
-                </span>
-              )}
-            </div>
-            <span className="text-[10px] text-slate-400 font-semibold">Grounded Context</span>
+        {isAi && !isUnknown && (
+          <div className="flex items-center gap-2 pb-1 text-xs font-semibold text-purple-700">
+            <Sparkles className="w-3.5 h-3.5 text-purple-600 animate-pulse" />
+            <span>ASI:One Grounded</span>
+            {message.ai_model && (
+              <span className="font-mono text-[10px] px-1.5 py-0.2 rounded bg-purple-50 text-purple-800 border border-purple-200 font-semibold">
+                {message.ai_model}
+              </span>
+            )}
           </div>
         )}
 
         {/* Unknown Warning Banner */}
         {isUnknown && (
-          <div className="flex items-center gap-1.5 text-amber-900 font-bold mb-2.5 pb-2.5 border-b border-amber-200/70 text-xs">
+          <div className="p-3 rounded-xl bg-amber-50/80 border border-amber-200 text-amber-900 text-xs flex items-center gap-2 font-bold mb-2">
             <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
             <span>Honesty Fallback: Insufficient Grounded Evidence</span>
           </div>
         )}
 
         {/* Formatted Content */}
-        <FormattedContent text={content} isUser={isUser} />
+        <FormattedContent text={content} isUser={false} />
 
         {/* Stale Documentation Warning */}
         {message.stale_warning && (
@@ -221,27 +218,27 @@ export default function ChatMessage({ message }) {
 
         {/* Citations List */}
         {message.citations && message.citations.length > 0 && (
-          <div className="mt-3.5 pt-3 border-t border-slate-100 space-y-1.5">
+          <div className="mt-3 pt-3 border-t border-slate-100 space-y-1.5">
             <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
               <Link2 className="w-3.5 h-3.5 text-[#0EB8A0]" />
               <span>Grounded Evidence Citations:</span>
             </div>
-            <div className="space-y-1.5">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               {message.citations.map((c, idx) => (
                 <div
                   key={idx}
-                  className="p-2.5 rounded-xl bg-slate-50 border border-slate-200/80 flex items-center justify-between gap-2 text-xs text-slate-700"
+                  className="p-2.5 rounded-xl bg-slate-50 hover:bg-slate-100/80 border border-slate-200/80 flex items-center justify-between gap-2 text-xs text-slate-700 transition"
                 >
                   <div className="flex items-center gap-2 truncate">
                     <FileText className="w-3.5 h-3.5 text-[#0EB8A0] shrink-0" />
-                    <span className="font-semibold text-slate-900 truncate">{c.source}</span>
+                    <span className="font-medium text-slate-900 truncate">{c.source}</span>
                   </div>
                   <div className="flex items-center gap-1.5 shrink-0 font-mono text-[10px]">
-                    <span className="px-1.5 py-0.5 rounded-md bg-slate-200/80 text-slate-700 font-semibold">
+                    <span className="px-1.5 py-0.2 rounded bg-slate-200/80 text-slate-700 font-semibold">
                       {c.kind}
                     </span>
                     {c.artifact_id && (
-                      <span className="px-1.5 py-0.5 rounded-md bg-teal-50 text-teal-800 border border-teal-200 font-bold">
+                      <span className="px-1.5 py-0.2 rounded bg-teal-50 text-teal-800 border border-teal-200 font-bold">
                         {c.artifact_id}
                       </span>
                     )}
@@ -264,13 +261,6 @@ export default function ChatMessage({ message }) {
           </div>
         )}
       </div>
-
-      {/* User Avatar */}
-      {isUser && (
-        <div className="w-8 h-8 rounded-xl bg-teal-100 text-teal-900 font-bold flex items-center justify-center shrink-0 border border-teal-300 mt-0.5 text-xs shadow-2xs">
-          U
-        </div>
-      )}
     </div>
   );
 }

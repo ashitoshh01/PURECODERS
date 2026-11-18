@@ -7,6 +7,10 @@ import {
   ArrowRight,
   Sliders,
   GitCommit,
+  ShieldAlert,
+  Users,
+  FileText,
+  Layers,
 } from 'lucide-react';
 import LoadingState from '../common/LoadingState';
 import ErrorBox from '../common/ErrorBox';
@@ -297,106 +301,192 @@ export default function RiskMap({ onNavigateToInterview, activeProject, refreshK
 
       {/* Unified Analytics Summary Strip (With tiny time in bottom corner & continuous sync) */}
       <div className="bg-white rounded-2xl border border-slate-200/90 p-4 sm:p-5 shadow-xs">
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 divide-y sm:divide-y-0 sm:divide-x divide-slate-100">
-          {/* Tile 1: High Risk Exposure */}
-          <div className="space-y-1">
-            <div className="flex items-center justify-between">
-              <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
-                High Risk Exposure
-              </span>
-              <button
-                type="button"
-                onClick={() => setActiveMetricModal('high_risk')}
-                className="w-5 h-5 rounded-full border border-slate-300 bg-slate-50 hover:bg-teal-50 hover:border-teal-500 text-slate-500 hover:text-teal-700 font-bold text-xs flex items-center justify-center cursor-help transition shadow-2xs"
-                title="What is this & how is it calculated? (Esc to close)"
-                aria-label="Explain High Risk Exposure"
-              >
-                ?
-              </button>
-            </div>
-            <div className="flex items-baseline gap-2 pt-1">
-              <span className="text-2xl font-extrabold text-slate-900 font-mono">
-                {data?.high_risk_count ?? 0}
-              </span>
-              <span className="text-xs text-slate-500 font-medium">artifacts</span>
-            </div>
-          </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5 sm:gap-4">
+          {/* Card 1: High Risk Exposure */}
+          <div className="relative overflow-hidden p-4 sm:p-5 rounded-2xl bg-gradient-to-br from-rose-50/80 via-white to-white border border-rose-200/90 hover:border-rose-300 shadow-xs hover:shadow-md transition-all duration-200 flex flex-col justify-between group">
+            <div>
+              <div className="flex items-center justify-between gap-2 mb-3">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-xl bg-rose-100/80 text-rose-700 flex items-center justify-center shadow-2xs group-hover:scale-105 transition-transform">
+                    <ShieldAlert className="w-4 h-4 stroke-[2.2]" />
+                  </div>
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-slate-700">
+                    High Risk Exposure
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setActiveMetricModal('high_risk')}
+                  className="w-5 h-5 rounded-full border border-rose-200/90 bg-white hover:bg-rose-50 text-rose-500 hover:text-rose-700 font-bold text-xs flex items-center justify-center cursor-help transition shadow-2xs shrink-0"
+                  title="What is this & how is it calculated? (Esc to close)"
+                  aria-label="Explain High Risk Exposure"
+                >
+                  ?
+                </button>
+              </div>
 
-          {/* Tile 2: Single Ownership */}
-          <div className="space-y-1 sm:pl-4 pt-3 sm:pt-0">
-            <div className="flex items-center justify-between">
-              <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
-                Single Ownership
-              </span>
-              <button
-                type="button"
-                onClick={() => setActiveMetricModal('single_ownership')}
-                className="w-5 h-5 rounded-full border border-slate-300 bg-slate-50 hover:bg-teal-50 hover:border-teal-500 text-slate-500 hover:text-teal-700 font-bold text-xs flex items-center justify-center cursor-help transition shadow-2xs"
-                title="What is this & how is it calculated? (Esc to close)"
-                aria-label="Explain Single Ownership"
-              >
-                ?
-              </button>
+              {/* Metric Display */}
+              <div className="flex items-baseline gap-2 pt-1">
+                <span className="text-3xl sm:text-4xl font-black text-rose-700 font-mono tracking-tight">
+                  {data?.high_risk_count ?? 0}
+                </span>
+                <span className="text-xs font-semibold text-slate-500">artifacts</span>
+              </div>
             </div>
-            <div className="flex items-baseline gap-2 pt-1">
-              <span className="text-2xl font-extrabold text-slate-900 font-mono">
-                {data?.bus_factor_violations?.length ?? 0}
-              </span>
-              <span className="text-xs text-slate-500 font-medium">hotspots</span>
-            </div>
-          </div>
 
-          {/* Tile 3: Knowledge Gaps & Ownership */}
-          <div className="space-y-1 sm:pl-4 pt-3 sm:pt-0">
-            <div className="flex items-center justify-between">
-              <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
-                Average Gaps
-              </span>
-              <button
-                type="button"
-                onClick={() => setActiveMetricModal('average_gaps')}
-                className="w-5 h-5 rounded-full border border-slate-300 bg-slate-50 hover:bg-teal-50 hover:border-teal-500 text-slate-500 hover:text-teal-700 font-bold text-xs flex items-center justify-center cursor-help transition shadow-2xs"
-                title="What is this & how is it calculated? (Esc to close)"
-                aria-label="Explain Average Gaps"
-              >
-                ?
-              </button>
-            </div>
-            <div className="flex items-baseline gap-2 pt-1">
-              <span className="text-2xl font-extrabold text-slate-900 font-mono">
-                {stats.avgDocGap}% <span className="text-sm font-normal text-slate-400">/</span> {stats.avgOwnership}%
+            {/* Footer Breakdown */}
+            <div className="mt-3.5 pt-2.5 border-t border-rose-100/70 flex items-center justify-between text-[11px]">
+              <div className="flex items-center gap-1.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-rose-500" />
+                <span className="font-semibold text-rose-800">{stats.high} Critical</span>
+                <span className="text-slate-300">·</span>
+                <span className="text-slate-500">{stats.med} Elevated</span>
+              </div>
+              <span className="text-[10px] font-bold px-1.5 py-0.2 rounded-md bg-rose-100/70 text-rose-800 border border-rose-200/60">
+                ≥30%
               </span>
             </div>
           </div>
 
-          {/* Tile 4: Monitored Scope */}
-          <div className="space-y-1 sm:pl-4 pt-3 sm:pt-0">
-            <div className="flex items-center justify-between">
-              <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
-                Monitored Scope
-              </span>
-              <button
-                type="button"
-                onClick={() => setActiveMetricModal('monitored_scope')}
-                className="w-5 h-5 rounded-full border border-slate-300 bg-slate-50 hover:bg-teal-50 hover:border-teal-500 text-slate-500 hover:text-teal-700 font-bold text-xs flex items-center justify-center cursor-help transition shadow-2xs"
-                title="What is this & how is it calculated? (Esc to close)"
-                aria-label="Explain Monitored Scope"
-              >
-                ?
-              </button>
+          {/* Card 2: Single Ownership */}
+          <div className="relative overflow-hidden p-4 sm:p-5 rounded-2xl bg-gradient-to-br from-amber-50/80 via-white to-white border border-amber-200/90 hover:border-amber-300 shadow-xs hover:shadow-md transition-all duration-200 flex flex-col justify-between group">
+            <div>
+              <div className="flex items-center justify-between gap-2 mb-3">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-xl bg-amber-100/80 text-amber-800 flex items-center justify-center shadow-2xs group-hover:scale-105 transition-transform">
+                    <Users className="w-4 h-4 stroke-[2.2]" />
+                  </div>
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-slate-700">
+                    Single Ownership
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setActiveMetricModal('single_ownership')}
+                  className="w-5 h-5 rounded-full border border-amber-200/90 bg-white hover:bg-amber-50 text-amber-600 hover:text-amber-800 font-bold text-xs flex items-center justify-center cursor-help transition shadow-2xs shrink-0"
+                  title="What is this & how is it calculated? (Esc to close)"
+                  aria-label="Explain Single Ownership"
+                >
+                  ?
+                </button>
+              </div>
+
+              {/* Metric Display */}
+              <div className="flex items-baseline gap-2 pt-1">
+                <span className="text-3xl sm:text-4xl font-black text-amber-800 font-mono tracking-tight">
+                  {data?.bus_factor_violations?.length ?? 0}
+                </span>
+                <span className="text-xs font-semibold text-slate-500">hotspots</span>
+              </div>
             </div>
-            <div className="flex items-baseline gap-2 pt-1">
-              <span className="text-2xl font-extrabold text-slate-900 font-mono">
-                {data?.artifacts?.length ?? 0}
+
+            {/* Footer Breakdown */}
+            <div className="mt-3.5 pt-2.5 border-t border-amber-100/70 flex items-center justify-between text-[11px]">
+              <span className="text-slate-600 font-medium truncate">
+                Sole author: <strong className="text-amber-900">{leaverName}</strong>
               </span>
-              <span className="text-xs text-slate-500 font-medium">modules</span>
+              <span className="text-[10px] font-bold px-1.5 py-0.2 rounded-md bg-amber-100/70 text-amber-800 border border-amber-200/60 shrink-0">
+                Bus Factor = 1
+              </span>
+            </div>
+          </div>
+
+          {/* Card 3: Knowledge Gaps & Ownership */}
+          <div className="relative overflow-hidden p-4 sm:p-5 rounded-2xl bg-gradient-to-br from-teal-50/80 via-white to-white border border-teal-200/90 hover:border-teal-300 shadow-xs hover:shadow-md transition-all duration-200 flex flex-col justify-between group">
+            <div>
+              <div className="flex items-center justify-between gap-2 mb-3">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-xl bg-teal-100/80 text-teal-800 flex items-center justify-center shadow-2xs group-hover:scale-105 transition-transform">
+                    <FileText className="w-4 h-4 stroke-[2.2]" />
+                  </div>
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-slate-700">
+                    Average Gaps
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setActiveMetricModal('average_gaps')}
+                  className="w-5 h-5 rounded-full border border-teal-200/90 bg-white hover:bg-teal-50 text-teal-600 hover:text-teal-800 font-bold text-xs flex items-center justify-center cursor-help transition shadow-2xs shrink-0"
+                  title="What is this & how is it calculated? (Esc to close)"
+                  aria-label="Explain Average Gaps"
+                >
+                  ?
+                </button>
+              </div>
+
+              {/* Metric Display */}
+              <div className="flex items-baseline gap-2 pt-1 font-mono">
+                <span className="text-3xl sm:text-4xl font-black text-teal-900 tracking-tight">
+                  {stats.avgDocGap}%
+                </span>
+                <span className="text-xs text-slate-400 font-sans font-medium">/</span>
+                <span className="text-2xl sm:text-3xl font-extrabold text-slate-700 tracking-tight">
+                  {stats.avgOwnership}%
+                </span>
+              </div>
+            </div>
+
+            {/* Footer Breakdown */}
+            <div className="mt-3.5 pt-2.5 border-t border-teal-100/70 flex items-center justify-between text-[11px]">
+              <div className="flex items-center gap-1.5 text-slate-600">
+                <span className="font-semibold text-teal-800">Doc Deficit</span>
+                <span className="text-slate-300">·</span>
+                <span>Concentration</span>
+              </div>
+              <span className="text-[10px] font-bold px-1.5 py-0.2 rounded-md bg-teal-100/70 text-teal-800 border border-teal-200/60 shrink-0">
+                AST Grounded
+              </span>
+            </div>
+          </div>
+
+          {/* Card 4: Monitored Scope */}
+          <div className="relative overflow-hidden p-4 sm:p-5 rounded-2xl bg-gradient-to-br from-indigo-50/80 via-white to-white border border-indigo-200/90 hover:border-indigo-300 shadow-xs hover:shadow-md transition-all duration-200 flex flex-col justify-between group">
+            <div>
+              <div className="flex items-center justify-between gap-2 mb-3">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-xl bg-indigo-100/80 text-indigo-800 flex items-center justify-center shadow-2xs group-hover:scale-105 transition-transform">
+                    <Layers className="w-4 h-4 stroke-[2.2]" />
+                  </div>
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-slate-700">
+                    Monitored Scope
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setActiveMetricModal('monitored_scope')}
+                  className="w-5 h-5 rounded-full border border-indigo-200/90 bg-white hover:bg-indigo-50 text-indigo-600 hover:text-indigo-800 font-bold text-xs flex items-center justify-center cursor-help transition shadow-2xs shrink-0"
+                  title="What is this & how is it calculated? (Esc to close)"
+                  aria-label="Explain Monitored Scope"
+                >
+                  ?
+                </button>
+              </div>
+
+              {/* Metric Display */}
+              <div className="flex items-baseline gap-2 pt-1">
+                <span className="text-3xl sm:text-4xl font-black text-indigo-950 font-mono tracking-tight">
+                  {data?.artifacts?.length ?? 0}
+                </span>
+                <span className="text-xs font-semibold text-slate-500">modules</span>
+              </div>
+            </div>
+
+            {/* Footer Breakdown */}
+            <div className="mt-3.5 pt-2.5 border-t border-indigo-100/70 flex items-center justify-between text-[11px]">
+              <span className="text-slate-600 font-medium truncate">
+                Across {data?.repositories?.length || 1} repository
+              </span>
+              <span className="text-[10px] font-bold px-1.5 py-0.2 rounded-md bg-emerald-100/70 text-emerald-800 border border-emerald-200/60 inline-flex items-center gap-1 shrink-0">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                <span>Continuous</span>
+              </span>
             </div>
           </div>
         </div>
 
         {/* Live Continuous Sync Strip Footer (With latest commit message & tiny time in bottom corner) */}
-        <div className="mt-4 pt-3 border-t border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-[11px]">
-          <div className="flex flex-wrap items-center gap-2 text-slate-500">
+        <div className="mt-4 pt-3 border-t border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 text-[11px]">
+          <div className="flex flex-wrap items-center gap-2 text-slate-500 min-w-0">
             <div className="flex items-center gap-2 shrink-0">
               <span className="relative flex h-2 w-2">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
@@ -404,10 +494,10 @@ export default function RiskMap({ onNavigateToInterview, activeProject, refreshK
               </span>
               <span className="font-semibold text-slate-700">Continuous Monitoring Live</span>
             </div>
-            <span className="text-slate-300">·</span>
+            <span className="text-slate-300 hidden sm:inline">·</span>
             {data?.latest_commit ? (
               <div
-                className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-slate-50 border border-slate-200 text-slate-700 font-mono text-[11px] max-w-md sm:max-w-lg truncate"
+                className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-slate-50 border border-slate-200 text-slate-700 font-mono text-[11px] max-w-full sm:max-w-md truncate"
                 title={`Latest commit: ${data.latest_commit.message}${data.latest_commit.author_name ? ` by ${data.latest_commit.author_name}` : ''}`}
               >
                 <GitCommit className="w-3.5 h-3.5 text-teal-600 shrink-0" />
@@ -415,7 +505,7 @@ export default function RiskMap({ onNavigateToInterview, activeProject, refreshK
                   {data.latest_commit.message}
                 </span>
                 {data.latest_commit.author_name && (
-                  <span className="text-slate-400 shrink-0 font-sans">
+                  <span className="text-slate-400 shrink-0 font-sans hidden sm:inline">
                     — {data.latest_commit.author_name}
                   </span>
                 )}
@@ -424,7 +514,7 @@ export default function RiskMap({ onNavigateToInterview, activeProject, refreshK
               <span className="text-slate-400">Real-time sync via commit webhooks</span>
             )}
           </div>
-          <div className="flex items-center gap-1.5 font-mono text-slate-500 sm:ml-auto self-end sm:self-auto shrink-0">
+          <div className="flex items-center gap-1.5 font-mono text-slate-500 shrink-0 self-start sm:self-auto">
             <span className="text-slate-400">Last updated:</span>
             <span className="font-bold text-slate-700 bg-slate-100 px-2 py-0.5 rounded-md border border-slate-200/80">
               {lastSyncFormatted}

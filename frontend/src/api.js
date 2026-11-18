@@ -234,9 +234,11 @@ export const echoApi = {
     body: JSON.stringify({ api_key: apiKey, model }),
   }),
   getConversations: (projectId = null) => api(`/api/conversations${projectId ? `?project_id=${projectId}` : ''}`),
-  askEcho: (question, asker = null, projectId = null) => api('/api/ask', {
+  getConversation: (convId) => api(`/api/conversations/${convId}`),
+  deleteConversation: (convId) => api(`/api/conversations/${convId}`, { method: 'DELETE' }),
+  askEcho: (question, asker = null, projectId = null, conversationId = null) => api('/api/ask', {
     method: 'POST',
-    body: JSON.stringify({ question, asker, project_id: projectId }),
+    body: JSON.stringify({ question, asker, project_id: projectId, conversation_id: conversationId }),
   }),
 
   // Reset Demo

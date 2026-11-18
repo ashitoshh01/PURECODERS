@@ -158,6 +158,7 @@ class AskIn(BaseModel):
     question: str
     asker: Optional[str] = None
     project_id: Optional[str] = None
+    conversation_id: Optional[str] = None
 
 class AiConfigIn(BaseModel):
     api_key: str
@@ -1238,39 +1239,104 @@ def update_ai_config_endpoint(payload: AiConfigIn):
         raise HTTPException(500, "Failed to update configuration in .env")
     return get_asi_status()
 
+def _format_chat_row(r):
+    import json
+    cit = []
+    if r["citations_json"]:
+        try:
+            cit = json.loads(r["citations_json"])
+        except:
+            pass
+    col_names = r.keys()
+    return {
+        "id": r["id"],
+        "conversation_id": r["conversation_id"] if "conversation_id" in col_names else None,
+        "role": r["role"],
+        "text": r["text"],
+        "answer": r["answer"],
+        "echo_says": r["echo_says"],
+        "suggested_contact": r["suggested_contact"],
+        "stale_warning": bool(r["stale_warning"]),
+        "citations": cit,
+        "ai_provider": r["ai_provider"] if "ai_provider" in col_names else "asi1",
+        "ai_model": r["ai_model"] if "ai_model" in col_names else "asi1",
+        "created_at": r["created_at"],
+    }
+
 @app.get("/api/conversations")
 def get_conversations(project_id: Optional[str] = None):
     p_id = project_id or (get_active_project() or {}).get("id")
     if not p_id:
-        return {"messages": []}
+        return {"conversations": [], "messages": []}
     conn = get_db()
+
+    # Query distinct conversations
+    conv_rows = conn.execute("""
+        SELECT c.id, c.title, c.created_at, c.updated_at,
+               COUNT(m.id) as message_count
+        FROM conversations c
+        LEFT JOIN chat_messages m ON c.id = m.conversation_id
+        WHERE c.project_id = ?
+        GROUP BY c.id
+        ORDER BY c.updated_at DESC
+    """, (p_id,)).fetchall()
+
+    conversations = []
+    for cr in conv_rows:
+        last_m = conn.execute(
+            "SELECT text, answer, echo_says, role FROM chat_messages WHERE conversation_id = ? ORDER BY id DESC LIMIT 1",
+            (cr["id"],)
+        ).fetchone()
+        preview = ""
+        if last_m:
+            preview = last_m["answer"] or last_m["echo_says"] or last_m["text"] or ""
+            preview = preview[:70].strip()
+        conversations.append({
+            "id": cr["id"],
+            "title": cr["title"],
+            "created_at": cr["created_at"],
+            "updated_at": cr["updated_at"],
+            "message_count": cr["message_count"],
+            "preview": preview,
+        })
+
+    # Fetch recent messages for backwards compatibility
     rows = conn.execute(
         "SELECT * FROM chat_messages WHERE project_id = ? ORDER BY created_at ASC",
         (p_id,)
     ).fetchall()
     conn.close()
-    messages = []
-    for r in rows:
-        import json
-        cit = []
-        if r["citations_json"]:
-            try: cit = json.loads(r["citations_json"])
-            except: pass
-        col_names = r.keys()
-        messages.append({
-            "id": r["id"],
-            "role": r["role"],
-            "text": r["text"],
-            "answer": r["answer"],
-            "echo_says": r["echo_says"],
-            "suggested_contact": r["suggested_contact"],
-            "stale_warning": bool(r["stale_warning"]),
-            "citations": cit,
-            "ai_provider": r["ai_provider"] if "ai_provider" in col_names else "asi1",
-            "ai_model": r["ai_model"] if "ai_model" in col_names else "asi1",
-            "created_at": r["created_at"],
-        })
-    return {"messages": messages}
+    messages = [_format_chat_row(r) for r in rows]
+    return {"conversations": conversations, "messages": messages}
+
+@app.get("/api/conversations/{conv_id}")
+def get_single_conversation(conv_id: str):
+    conn = get_db()
+    conv = conn.execute("SELECT * FROM conversations WHERE id = ?", (conv_id,)).fetchone()
+    if not conv:
+        conn.close()
+        raise HTTPException(404, "Conversation not found")
+    rows = conn.execute(
+        "SELECT * FROM chat_messages WHERE conversation_id = ? ORDER BY created_at ASC",
+        (conv_id,)
+    ).fetchall()
+    conn.close()
+    return {
+        "id": conv["id"],
+        "title": conv["title"],
+        "created_at": conv["created_at"],
+        "updated_at": conv["updated_at"],
+        "messages": [_format_chat_row(r) for r in rows]
+    }
+
+@app.delete("/api/conversations/{conv_id}")
+def delete_single_conversation(conv_id: str):
+    conn = get_db()
+    with conn:
+        conn.execute("DELETE FROM chat_messages WHERE conversation_id = ?", (conv_id,))
+        conn.execute("DELETE FROM conversations WHERE id = ?", (conv_id,))
+    conn.close()
+    return {"status": "ok", "deleted_id": conv_id}
 
 @app.post("/api/ask")
 async def ask_echo_endpoint(payload: AskIn):
@@ -1280,21 +1346,46 @@ async def ask_echo_endpoint(payload: AskIn):
 
     now = datetime.now(timezone.utc).isoformat()
     import json
+    import uuid
 
     conn = get_db()
+
+    # Determine or generate conversation_id
+    conv_id = payload.conversation_id
+    first_q = payload.question.strip()
+    title = first_q[:55] if len(first_q) > 55 else first_q
+
+    if not conv_id:
+        conv_id = f"conv_{uuid.uuid4().hex[:12]}"
+        with conn:
+            conn.execute("""
+                INSERT INTO conversations (id, project_id, title, created_at, updated_at)
+                VALUES (?, ?, ?, ?, ?)
+            """, (conv_id, p_id, title, now, now))
+    else:
+        existing = conn.execute("SELECT id FROM conversations WHERE id = ?", (conv_id,)).fetchone()
+        if not existing:
+            with conn:
+                conn.execute("""
+                    INSERT INTO conversations (id, project_id, title, created_at, updated_at)
+                    VALUES (?, ?, ?, ?, ?)
+                """, (conv_id, p_id, title, now, now))
+        else:
+            with conn:
+                conn.execute("UPDATE conversations SET updated_at = ? WHERE id = ?", (now, conv_id))
 
     # Save user message
     with conn:
         conn.execute("""
-            INSERT INTO chat_messages (project_id, role, text, created_at)
-            VALUES (?, 'user', ?, ?)
-        """, (p_id, payload.question.strip(), now))
+            INSERT INTO chat_messages (project_id, conversation_id, role, text, created_at)
+            VALUES (?, ?, 'user', ?, ?)
+        """, (p_id, conv_id, payload.question.strip(), now))
 
-    # Fetch recent conversation turns
+    # Fetch recent conversation turns in this specific conversation
     history_rows = conn.execute("""
         SELECT role, text, answer, echo_says FROM chat_messages 
-        WHERE project_id = ? ORDER BY id DESC LIMIT 6
-    """, (p_id,)).fetchall()
+        WHERE conversation_id = ? ORDER BY id DESC LIMIT 8
+    """, (conv_id,)).fetchall()
     conversation_history = [dict(h) for h in reversed(history_rows)]
 
     # Query ASI:One AI with full project context
@@ -1318,12 +1409,13 @@ async def ask_echo_endpoint(payload: AskIn):
     with conn:
         conn.execute("""
             INSERT INTO chat_messages (
-                project_id, role, text, answer, echo_says, suggested_contact,
+                project_id, conversation_id, role, text, answer, echo_says, suggested_contact,
                 stale_warning, citations_json, ai_provider, ai_model, created_at
             )
-            VALUES (?, 'echo', ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, 'echo', ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, (
             p_id,
+            conv_id,
             content,
             answer,
             echo_says,
@@ -1336,6 +1428,8 @@ async def ask_echo_endpoint(payload: AskIn):
         ))
 
     conn.close()
+    result["conversation_id"] = conv_id
+    result["conversation_title"] = title
     return result
 
 # ----------------------------------------------------------------------------

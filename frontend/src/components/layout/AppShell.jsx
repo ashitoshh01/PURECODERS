@@ -29,7 +29,11 @@ export default function AppShell({
   const [connectModalOpen, setConnectModalOpen] = useState(false);
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col font-sans text-slate-900 selection:bg-[#18C6B0]/20 selection:text-slate-900">
+    <div
+      className={`min-h-screen ${
+        activeTab === 'ask' ? 'h-screen overflow-hidden bg-white' : 'bg-slate-50'
+      } flex flex-col font-sans text-slate-900 selection:bg-[#18C6B0]/20 selection:text-slate-900`}
+    >
       {/* Persistent Sidebar */}
       <Sidebar
         activeTab={activeTab}
@@ -71,18 +75,34 @@ export default function AppShell({
       )}
 
       {/* Main Content Area (offset by sidebar on desktop when open) */}
-      <div className={`${desktopSidebarOpen ? 'lg:pl-64' : 'lg:pl-0'} flex flex-col flex-1 min-w-0 transition-all duration-200 ease-in-out`}>
-        <main className={`flex-1 w-full mx-auto ${activeTab === 'ask' ? 'p-3 sm:p-5 lg:p-6 max-w-7xl flex flex-col' : 'p-4 sm:p-6 lg:p-8 max-w-7xl'}`}>
+      <div
+        className={`${
+          desktopSidebarOpen ? 'lg:pl-64' : 'lg:pl-0'
+        } ${
+          activeTab === 'ask'
+            ? 'pl-0 h-screen overflow-hidden bg-white'
+            : 'pl-8 sm:pl-10 lg:pl-0'
+        } flex flex-col flex-1 min-w-0 transition-all duration-200 ease-in-out`}
+      >
+        <main
+          className={`flex-1 w-full ${
+            activeTab === 'ask'
+              ? 'p-0 h-full overflow-hidden flex flex-col bg-white'
+              : 'p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto'
+          }`}
+        >
           {children}
         </main>
 
-        <footer className="py-4 px-6 border-t border-slate-200/90 bg-white text-center text-xs text-slate-500 flex flex-col sm:flex-row items-center justify-between gap-2">
-          <span>Echo Knowledge-Risk Engine · SQLite Persistent Database</span>
-          <span className="flex items-center gap-2">
-            <span className="w-1.5 h-1.5 rounded-full bg-[#18C6B0]" />
-            <span className="font-medium text-slate-600">Deterministic Knowledge Governance</span>
-          </span>
-        </footer>
+        {activeTab !== 'ask' && (
+          <footer className="py-4 px-6 border-t border-slate-200/90 bg-white text-center text-xs text-slate-500 flex flex-col sm:flex-row items-center justify-between gap-2">
+            <span>Echo Knowledge-Risk Engine · SQLite Persistent Database</span>
+            <span className="flex items-center gap-2">
+              <span className="w-1.5 h-1.5 rounded-full bg-[#18C6B0]" />
+              <span className="font-medium text-slate-600">Deterministic Knowledge Governance</span>
+            </span>
+          </footer>
+        )}
       </div>
 
       {/* Modals */}

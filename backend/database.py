@@ -184,6 +184,7 @@ def init_db():
         CREATE TABLE IF NOT EXISTS chat_messages (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             project_id TEXT NOT NULL,
+            conversation_id TEXT,
             role TEXT NOT NULL, -- 'user', 'echo'
             text TEXT,
             answer TEXT,
@@ -192,6 +193,15 @@ def init_db():
             stale_warning INTEGER DEFAULT 0,
             citations_json TEXT,
             created_at TEXT NOT NULL,
+            FOREIGN KEY(project_id) REFERENCES projects(id) ON DELETE CASCADE
+        );
+
+        CREATE TABLE IF NOT EXISTS conversations (
+            id TEXT PRIMARY KEY,
+            project_id TEXT NOT NULL,
+            title TEXT NOT NULL,
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL,
             FOREIGN KEY(project_id) REFERENCES projects(id) ON DELETE CASCADE
         );
 
@@ -376,11 +386,41 @@ def init_db():
         chat_cols = [r["name"] for r in conn.execute("PRAGMA table_info(chat_messages)").fetchall()]
         needed_chat_cols = {
             "ai_provider": "TEXT DEFAULT 'asi1'",
-            "ai_model": "TEXT DEFAULT 'asi1'"
+            "ai_model": "TEXT DEFAULT 'asi1'",
+            "conversation_id": "TEXT"
         }
         for col, col_type in needed_chat_cols.items():
             if col not in chat_cols:
                 conn.execute(f"ALTER TABLE chat_messages ADD COLUMN {col} {col_type};")
+
+        # Backfill conversations table if missing
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS conversations (
+                id TEXT PRIMARY KEY,
+                project_id TEXT NOT NULL,
+                title TEXT NOT NULL,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL,
+                FOREIGN KEY(project_id) REFERENCES projects(id) ON DELETE CASCADE
+            );
+        """)
+
+        # If any chat_messages have NULL conversation_id, backfill a default conversation
+        null_conv_rows = conn.execute("SELECT DISTINCT project_id FROM chat_messages WHERE conversation_id IS NULL").fetchall()
+        for nr in null_conv_rows:
+            p_id = nr["project_id"]
+            first_user_msg = conn.execute(
+                "SELECT text, created_at FROM chat_messages WHERE project_id = ? AND role = 'user' ORDER BY id ASC LIMIT 1",
+                (p_id,)
+            ).fetchone()
+            first_title = first_user_msg["text"][:50] if first_user_msg else "General Discussion"
+            conv_id = f"conv_default_{p_id}"
+            first_time = first_user_msg["created_at"] if first_user_msg else "2026-11-18T00:00:00Z"
+            conn.execute("""
+                INSERT OR IGNORE INTO conversations (id, project_id, title, created_at, updated_at)
+                VALUES (?, ?, ?, ?, ?)
+            """, (conv_id, p_id, first_title, first_time, first_time))
+            conn.execute("UPDATE chat_messages SET conversation_id = ? WHERE project_id = ? AND conversation_id IS NULL", (conv_id, p_id))
 
         # Decisions migration: rejected_alternatives, review_status, reviewed_by, reviewed_at
         decision_cols = [r["name"] for r in conn.execute("PRAGMA table_info(decisions)").fetchall()]

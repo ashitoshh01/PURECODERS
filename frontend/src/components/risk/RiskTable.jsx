@@ -82,7 +82,7 @@ export default function RiskTable({
   return (
     <div className="bg-white rounded-xl border border-slate-200/90 shadow-xs overflow-hidden">
       {/* Table Toolbar */}
-      <div className="p-4 border-b border-slate-200/90 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-white">
+      <div className="p-4 border-b border-slate-200/90 flex flex-col xl:flex-row items-stretch xl:items-center justify-between gap-3 bg-white">
         {/* Search */}
         <div className="relative flex-1 max-w-sm">
           <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
@@ -98,7 +98,7 @@ export default function RiskTable({
         {/* Filter Pills and Sort */}
         <div className="flex flex-wrap items-center gap-2">
           {/* Quick Filters */}
-          <div className="flex items-center gap-1 overflow-x-auto pb-1 sm:pb-0">
+          <div className="flex items-center gap-1 overflow-x-auto pb-1 xl:pb-0 scrollbar-none">
             {[
               { id: 'all', label: 'All Artifacts' },
               { id: 'priority', label: '🔥 Priority Hotspots' },
@@ -140,7 +140,7 @@ export default function RiskTable({
 
       {/* Table Element (Linear-style File Explorer) */}
       <div className="overflow-x-auto">
-        <table className="w-full text-left text-xs text-slate-600">
+        <table className="w-full min-w-[760px] text-left text-xs text-slate-600">
           <thead className="bg-slate-50/90 border-b border-slate-200/90 text-slate-500 font-semibold uppercase tracking-wider text-[11px]">
             <tr>
               <th className="py-3 px-4">Artifact Name &amp; ID</th>

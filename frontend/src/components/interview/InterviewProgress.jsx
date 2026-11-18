@@ -15,7 +15,7 @@ export default function InterviewProgress({
 
   return (
     <div className="bg-white rounded-xl border border-slate-200/90 p-5 shadow-xs">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         {/* Left: Progress info */}
         <div className="space-y-2 flex-1">
           <div className="flex flex-wrap items-center gap-2">
@@ -42,7 +42,7 @@ export default function InterviewProgress({
         </div>
 
         {/* Right: Decisions badge + Countdown Timer */}
-        <div className="flex items-center gap-3 shrink-0">
+        <div className="flex flex-wrap items-center gap-2 sm:gap-3 shrink-0">
           {/* Decisions logged badge */}
           {decisionCount > 0 && (
             <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-purple-50 border border-purple-200 text-purple-900 text-xs">
