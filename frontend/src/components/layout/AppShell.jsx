@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
+import { Menu } from 'lucide-react';
 import Sidebar from './Sidebar';
-import Topbar from './Topbar';
 import { SettingsModal } from './SettingsModal';
 import ConnectRepoModal from './ConnectRepoModal';
 
@@ -48,27 +48,29 @@ export default function AppShell({
         leaver={leaver}
         successor={successor}
         manager={manager}
+        currentUser={currentUser}
+        onLogout={onLogout}
+        onSwitchRole={onSwitchRole}
       />
 
       {/* Main Content Area (offset by sidebar on desktop when open) */}
       <div className={`${desktopSidebarOpen ? 'lg:pl-64' : 'lg:pl-0'} flex flex-col flex-1 min-w-0 transition-all duration-200 ease-in-out`}>
-        <Topbar
-          activeTab={activeTab}
-          onOpenMobile={() => {
-            setMobileOpen(true);
-            setDesktopSidebarOpen(true);
-          }}
-          desktopSidebarOpen={desktopSidebarOpen}
-          onToggleSidebar={() => {
-            setDesktopSidebarOpen((prev) => !prev);
-            setMobileOpen((prev) => !prev);
-          }}
-          successor={successor}
-          leaver={leaver}
-          currentUser={currentUser}
-          onLogout={onLogout}
-          onSwitchRole={onSwitchRole}
-        />
+        {/* Floating Toggle Button (Visible only when sidebar is closed on desktop or on mobile) */}
+        {(!desktopSidebarOpen || !mobileOpen) && (
+          <button
+            onClick={() => {
+              setDesktopSidebarOpen(true);
+              setMobileOpen(true);
+            }}
+            className={`fixed top-4 left-4 z-40 p-2 rounded-xl bg-white/95 backdrop-blur-xs border border-slate-200/90 shadow-md text-slate-700 hover:text-slate-900 hover:bg-slate-100 transition cursor-pointer ${
+              desktopSidebarOpen ? 'lg:hidden flex' : 'flex'
+            }`}
+            aria-label="Open navigation sidebar"
+            title="Open sidebar"
+          >
+            <Menu className="w-5 h-5 text-slate-700" />
+          </button>
+        )}
 
         <main className={`flex-1 w-full mx-auto ${activeTab === 'ask' ? 'p-3 sm:p-5 lg:p-6 max-w-7xl flex flex-col' : 'p-4 sm:p-6 lg:p-8 max-w-7xl'}`}>
           {children}
