@@ -8,6 +8,7 @@ import {
   MessageSquare,
   FileText,
   ChevronRight,
+  Clock,
 } from 'lucide-react';
 import { RiskBadge } from '../common/RiskBadge';
 import { getRiskColor } from '../../api';
@@ -21,7 +22,7 @@ export default function RiskTable({
   onSelectArtifact,
 }) {
   const [search, setSearch] = useState('');
-  const [filterType, setFilterType] = useState('all'); // 'all' | 'at_risk' | 'critical' | 'bus1' | 'planted' | 'module' | 'pull_request' | 'ticket'
+  const [filterType, setFilterType] = useState('all'); // 'all' | 'priority' | 'at_risk' | 'critical' | 'bus1' | 'planted'
   const [sortKey, setSortKey] = useState('risk_desc'); // 'risk_desc' | 'risk_asc' | 'criticality' | 'recency' | 'title'
 
   const typeIcons = {
@@ -46,8 +47,9 @@ export default function RiskTable({
       if (!matchesSearch) return false;
 
       // Filter logic aligned with deterministic thresholds
-      if (filterType === 'at_risk') return a.risk_pct >= 30; // Matches KPI card threshold (37)
-      if (filterType === 'critical') return a.risk_pct >= 50; // Matches Critical tier (28)
+      if (filterType === 'priority') return a.risk_pct >= 50 || a.bus_factor_one;
+      if (filterType === 'at_risk') return a.risk_pct >= 30; // Matches KPI card threshold
+      if (filterType === 'critical') return a.risk_pct >= 50; // Matches Critical tier
       if (filterType === 'bus1') return a.bus_factor_one;
       if (filterType === 'planted') return plantedGaps.includes(a.artifact_id);
       if (filterType === 'module') return a.type === 'module' || a.type === 'script';
@@ -99,9 +101,9 @@ export default function RiskTable({
           <div className="flex items-center gap-1 overflow-x-auto pb-1 sm:pb-0">
             {[
               { id: 'all', label: 'All Artifacts' },
-              { id: 'at_risk', label: 'At Risk (≥30%)' },
+              { id: 'priority', label: '🔥 Priority Hotspots' },
               { id: 'critical', label: 'Critical (≥50%)' },
-              { id: 'bus1', label: 'Bus Factor 1' },
+              { id: 'bus1', label: 'Bus Factor = 1' },
               { id: 'planted', label: 'Planted Gaps' },
             ].map((f) => (
               <button
@@ -190,6 +192,13 @@ export default function RiskTable({
                           <div className="flex flex-wrap items-center gap-1.5 mt-1">
                             <span className="font-mono text-[10px] text-slate-500 font-medium bg-slate-100 px-1 py-0.2 rounded border border-slate-200/60">
                               {a.artifact_id}
+                            </span>
+                            <span
+                              className="text-[10px] text-slate-500 font-medium bg-slate-50 px-1.5 py-0.2 rounded border border-slate-200/60 inline-flex items-center gap-1"
+                              title={a.updated_at ? `Updated: ${a.updated_at}` : 'Monitored'}
+                            >
+                              <Clock className="w-2.5 h-2.5 text-slate-400" />
+                              <span>{a.updated_label || (a.days_since_touch === 0 ? 'Just now' : `${a.days_since_touch}d ago`)}</span>
                             </span>
                             {a.bus_factor_one && (
                               <span className="text-[10px] font-semibold px-1.5 py-0.2 rounded-full bg-rose-50 text-rose-700 border border-rose-200">

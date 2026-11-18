@@ -212,6 +212,9 @@ export const echoApi = {
     method: 'POST',
     body: JSON.stringify(payload),
   }),
+  clearInterviewAnswer: (questionId) => api(`/api/interview/answers/${questionId}`, {
+    method: 'DELETE',
+  }),
   getInterviewAnswers: (projectId = null) => api(`/api/interview/answers${projectId ? `?project_id=${projectId}` : ''}`),
 
   // Handover

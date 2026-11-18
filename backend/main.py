@@ -973,6 +973,26 @@ def get_interview_answers(project_id: Optional[str] = None):
     conn.close()
     return {"answers": [dict(r) for r in rows], "total": len(rows)}
 
+@app.delete("/api/interview/answers/{question_id}")
+def clear_interview_answer(question_id: str):
+    """
+    Clears / deletes an interview answer for a question and removes any
+    associated decisions and landmines extracted from this answer.
+    """
+    conn = get_db()
+    existing = conn.execute("SELECT id, artifact_id FROM interview_answers WHERE question_id = ?", (question_id,)).fetchone()
+    if not existing:
+        conn.close()
+        return {"status": "cleared", "question_id": question_id, "deleted": False}
+
+    ans_id = existing["id"]
+    with conn:
+        conn.execute("DELETE FROM landmines WHERE extracted_from_answer_id = ?", (ans_id,))
+        conn.execute("DELETE FROM decisions WHERE extracted_from_answer_id = ?", (ans_id,))
+        conn.execute("DELETE FROM interview_answers WHERE id = ?", (ans_id,))
+    conn.close()
+    return {"status": "cleared", "question_id": question_id, "deleted": True}
+
 # ----------------------------------------------------------------------------
 # VOICE INTERVIEWS & REVIEWER PORTAL
 # ----------------------------------------------------------------------------

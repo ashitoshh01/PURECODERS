@@ -18,6 +18,7 @@ export default function ExitInterview({ onAnswerSubmitted, focusArtifactId, acti
   const [saved, setSaved] = useState({});
   const [loading, setLoading] = useState(true);
   const [savingId, setSavingId] = useState(null);
+  const [clearingId, setClearingId] = useState(null);
   const [err, setErr] = useState(null);
   const [secondsLeft, setSecondsLeft] = useState(15 * 60);
   const [categoryFilter, setCategoryFilter] = useState('all');
@@ -95,6 +96,28 @@ export default function ExitInterview({ onAnswerSubmitted, focusArtifactId, acti
       alert(`Failed to save answer: ${e.message}`);
     } finally {
       setSavingId(null);
+    }
+  };
+
+  const handleClearAnswer = async (q) => {
+    setClearingId(q.id);
+    try {
+      await echoApi.clearInterviewAnswer(q.id);
+      setSaved((prev) => {
+        const next = { ...prev };
+        delete next[q.id];
+        return next;
+      });
+      setAnswers((prev) => {
+        const next = { ...prev };
+        delete next[q.id];
+        return next;
+      });
+      if (onAnswerSubmitted) onAnswerSubmitted();
+    } catch (e) {
+      alert(`Failed to clear answer: ${e.message}`);
+    } finally {
+      setClearingId(null);
     }
   };
 
@@ -195,6 +218,8 @@ export default function ExitInterview({ onAnswerSubmitted, focusArtifactId, acti
               isSaved={Boolean(saved[q.id])}
               onSaveAnswer={handleSubmitAnswer}
               saving={savingId === q.id}
+              onClearAnswer={handleClearAnswer}
+              clearing={clearingId === q.id}
             />
           ))
         )}

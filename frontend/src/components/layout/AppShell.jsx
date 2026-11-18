@@ -39,6 +39,7 @@ export default function AppShell({
         desktopSidebarOpen={desktopSidebarOpen}
         onToggleSidebar={() => setDesktopSidebarOpen((prev) => !prev)}
         onOpenSettings={() => setSettingsOpen(true)}
+        onOpenConnectModal={() => setConnectModalOpen(true)}
         onResetDemo={onResetDemo}
         resetting={resetting}
         projects={projects}
@@ -62,12 +63,6 @@ export default function AppShell({
             setDesktopSidebarOpen((prev) => !prev);
             setMobileOpen((prev) => !prev);
           }}
-          backendStatus={backendStatus}
-          onRetryConnection={onRetryConnection}
-          projects={projects}
-          activeProject={activeProject}
-          onSelectProject={onSelectProject}
-          onOpenConnectModal={() => setConnectModalOpen(true)}
           successor={successor}
           leaver={leaver}
           currentUser={currentUser}

@@ -261,9 +261,9 @@ def scan_git_repository(
             title = f"{fpath} — {atype}"
 
             conn.execute("""
-                INSERT INTO artifacts (id, project_id, repo_id, type, title, path, criticality, doc_coverage, days_since_touch, repo, is_planted_gap, created_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?)
-            """, (art_id, project_id, repo_id, atype, title, fpath, criticality, doc_coverage, days_since, resolved_repo_name, now))
+                INSERT INTO artifacts (id, project_id, repo_id, type, title, path, criticality, doc_coverage, days_since_touch, repo, is_planted_gap, created_at, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?)
+            """, (art_id, project_id, repo_id, atype, title, fpath, criticality, doc_coverage, days_since, resolved_repo_name, now, now))
 
             # Store contributions
             for author_name, commit_cnt in file_authors.items():

@@ -406,10 +406,11 @@ def init_db():
             if col not in loop_cols:
                 conn.execute(f"ALTER TABLE open_loops ADD COLUMN {col} {col_type};")
 
-        # Artifacts migration: source_connector
+        # Artifacts migration: source_connector, updated_at
         artifact_cols = [r["name"] for r in conn.execute("PRAGMA table_info(artifacts)").fetchall()]
         needed_artifact_cols = {
-            "source_connector": "TEXT"
+            "source_connector": "TEXT",
+            "updated_at": "TEXT",
         }
         for col, col_type in needed_artifact_cols.items():
             if col not in artifact_cols:

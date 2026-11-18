@@ -192,8 +192,8 @@ def process_github_push_webhook(project_id: str, payload: Dict[str, Any]) -> Dic
 
                 for m in matching:
                     art_id = m["id"]
-                    # Reset days since touch to 0
-                    conn.execute("UPDATE artifacts SET days_since_touch = 0 WHERE id = ?", (art_id,))
+                    # Reset days since touch to 0 and set updated_at
+                    conn.execute("UPDATE artifacts SET days_since_touch = 0, updated_at = ? WHERE id = ?", (now, art_id))
 
                     # Increment contribution for author
                     member_id = author_name.lower().replace(" ", "_")
@@ -209,6 +209,27 @@ def process_github_push_webhook(project_id: str, payload: Dict[str, Any]) -> Dic
                         conn.execute("INSERT INTO contributions (artifact_id, person_id, count) VALUES (?, ?, 1)", (art_id, member_id))
 
                     updated_artifacts += 1
+
+                # If this is a newly added file not in artifacts, auto-create it
+                if not matching and f:
+                    new_art_id = f"art-{uuid.uuid4().hex[:8]}"
+                    art_title = os.path.basename(f)
+                    art_type = "module" if f.endswith((".py", ".js", ".jsx", ".ts", ".tsx", ".go", ".java")) else "config" if f.endswith((".json", ".yaml", ".yml", ".toml", ".env")) else "document"
+                    conn.execute("""
+                        INSERT INTO artifacts (id, project_id, repo_id, type, title, path, criticality, doc_coverage, days_since_touch, repo, is_planted_gap, created_at, updated_at)
+                        VALUES (?, ?, ?, ?, ?, ?, 3, 0.2, 0, ?, 0, ?, ?)
+                    """, (new_art_id, project_id, f"repo-{repo_name.lower()}", art_type, art_title, f, repo_name, now, now))
+
+                    member_id = author_name.lower().replace(" ", "_")
+                    conn.execute("""
+                        INSERT OR IGNORE INTO team_members (id, project_id, name, email, role)
+                        VALUES (?, ?, ?, ?, 'Contributor')
+                    """, (member_id, project_id, author_name, author_email))
+                    conn.execute("INSERT OR REPLACE INTO contributions (artifact_id, person_id, count) VALUES (?, ?, 1)", (new_art_id, member_id))
+                    updated_artifacts += 1
+
+            # Update repository sync time
+            conn.execute("UPDATE repositories SET last_synced_at = ? WHERE project_id = ?", (now, project_id))
 
     conn.close()
 

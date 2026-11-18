@@ -28,6 +28,15 @@ def seed_demo_data(reset: bool = False):
                 conn.execute("DELETE FROM chat_messages WHERE project_id = ?", (DEMO_PROJECT_ID,))
                 conn.execute("UPDATE handover_packages SET status = 'pending_manager_approval', approved_at = NULL, approved_by = NULL WHERE project_id = ?", (DEMO_PROJECT_ID,))
                 conn.execute("UPDATE onboarding_tasks SET is_completed = 0 WHERE package_id = 'pkg-demo'")
+                conn.execute("DELETE FROM commits WHERE project_id = ?", (DEMO_PROJECT_ID,))
+                conn.executemany("""
+                    INSERT OR REPLACE INTO commits (id, project_id, repo_id, author_name, author_email, committed_at, message, files_changed_count)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                """, [
+                    ("c-demo-01", DEMO_PROJECT_ID, "repo-core", "Aarav", "aarav@example.com", now, "fix(payments): update retry backoff interval to 5s", 3),
+                    ("c-demo-02", DEMO_PROJECT_ID, "repo-core", "Meera", "meera@example.com", "2026-11-16T14:30:00Z", "refactor(auth): simplify session token caching", 2),
+                    ("c-demo-03", DEMO_PROJECT_ID, "repo-core", "Rohan", "rohan@example.com", "2026-11-15T09:15:00Z", "chore(ci): parallelize integration tests", 1),
+                ])
             return
 
         with conn:
@@ -58,19 +67,19 @@ def seed_demo_data(reset: bool = False):
 
             # 4. Artifacts
             artifacts = [
-                ("MOD-SYNC", DEMO_PROJECT_ID, "repo-core", "module", "nightly_sync.py — nightly data sync job", "core-platform/nightly_sync.py", 5, 0.0, 3, "core-platform", 1, now),
-                ("MOD-RETRY", DEMO_PROJECT_ID, "repo-core", "module", "payments/retry.py — payment retry logic", "core-platform/payments/retry.py", 4, 0.3, 10, "core-platform", 0, now),
-                ("MOD-BILLING", DEMO_PROJECT_ID, "repo-core", "module", "billing/invoice_gen.py", "core-platform/billing/invoice_gen.py", 3, 0.6, 40, "core-platform", 0, now),
-                ("MOD-AUTH", DEMO_PROJECT_ID, "repo-core", "module", "auth/session.py", "core-platform/auth/session.py", 4, 0.8, 15, "core-platform", 0, now),
-                ("PR-214", DEMO_PROJECT_ID, "repo-core", "pull_request", "PR #214 — changed retry limit 3 -> 7 (no explanation)", "core-platform/pulls/214", 4, 0.1, 10, "core-platform", 1, now),
-                ("PR-198", DEMO_PROJECT_ID, "repo-core", "pull_request", "PR #198 — auth token refresh fix", "core-platform/pulls/198", 3, 0.7, 15, "core-platform", 0, now),
-                ("TICK-882", DEMO_PROJECT_ID, "repo-core", "ticket", "JIRA-882 — Sync job fails silently on weekends", "jira/browse/882", 4, 0.4, 7, "jira", 1, now),
-                ("SLACK-VENDOR", DEMO_PROJECT_ID, "repo-core", "chat_thread", "Vendor thread — DataPipe Inc. (Aarav only responder)", "slack/archives/datapipe", 3, 0.0, 2, "slack", 1, now),
-                ("DOC-RUNBOOK", DEMO_PROJECT_ID, "repo-core", "document", "Runbook — payments service (stale, last updated 8 months ago)", "docs/runbooks/payments.md", 3, 0.2, 240, "docs", 0, now),
+                ("MOD-SYNC", DEMO_PROJECT_ID, "repo-core", "module", "nightly_sync.py — nightly data sync job", "core-platform/nightly_sync.py", 5, 0.0, 3, "core-platform", 1, now, now),
+                ("MOD-RETRY", DEMO_PROJECT_ID, "repo-core", "module", "payments/retry.py — payment retry logic", "core-platform/payments/retry.py", 4, 0.3, 10, "core-platform", 0, now, now),
+                ("MOD-BILLING", DEMO_PROJECT_ID, "repo-core", "module", "billing/invoice_gen.py", "core-platform/billing/invoice_gen.py", 3, 0.6, 40, "core-platform", 0, now, now),
+                ("MOD-AUTH", DEMO_PROJECT_ID, "repo-core", "module", "auth/session.py", "core-platform/auth/session.py", 4, 0.8, 15, "core-platform", 0, now, now),
+                ("PR-214", DEMO_PROJECT_ID, "repo-core", "pull_request", "PR #214 — changed retry limit 3 -> 7 (no explanation)", "core-platform/pulls/214", 4, 0.1, 10, "core-platform", 1, now, now),
+                ("PR-198", DEMO_PROJECT_ID, "repo-core", "pull_request", "PR #198 — auth token refresh fix", "core-platform/pulls/198", 3, 0.7, 15, "core-platform", 0, now, now),
+                ("TICK-882", DEMO_PROJECT_ID, "repo-core", "ticket", "JIRA-882 — Sync job fails silently on weekends", "jira/browse/882", 4, 0.4, 7, "jira", 1, now, now),
+                ("SLACK-VENDOR", DEMO_PROJECT_ID, "repo-core", "chat_thread", "Vendor thread — DataPipe Inc. (Aarav only responder)", "slack/archives/datapipe", 3, 0.0, 2, "slack", 1, now, now),
+                ("DOC-RUNBOOK", DEMO_PROJECT_ID, "repo-core", "document", "Runbook — payments service (stale, last updated 8 months ago)", "docs/runbooks/payments.md", 3, 0.2, 240, "docs", 0, now, now),
             ]
             conn.executemany("""
-                INSERT OR REPLACE INTO artifacts (id, project_id, repo_id, type, title, path, criticality, doc_coverage, days_since_touch, repo, is_planted_gap, created_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                INSERT OR REPLACE INTO artifacts (id, project_id, repo_id, type, title, path, criticality, doc_coverage, days_since_touch, repo, is_planted_gap, created_at, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """, artifacts)
 
             # 5. Contributions
@@ -158,6 +167,17 @@ def seed_demo_data(reset: bool = False):
                 INSERT OR REPLACE INTO connectors (id, name, type, status, details, last_sync_at)
                 VALUES (?, ?, ?, ?, ?, ?)
             """, connectors)
+
+            # 12. Recent Commits for Continuous Monitoring
+            commits = [
+                ("c-demo-01", DEMO_PROJECT_ID, "repo-core", "Aarav", "aarav@example.com", now, "fix(payments): update retry backoff interval to 5s", 3),
+                ("c-demo-02", DEMO_PROJECT_ID, "repo-core", "Meera", "meera@example.com", "2026-11-16T14:30:00Z", "refactor(auth): simplify session token caching", 2),
+                ("c-demo-03", DEMO_PROJECT_ID, "repo-core", "Rohan", "rohan@example.com", "2026-11-15T09:15:00Z", "chore(ci): parallelize integration tests", 1),
+            ]
+            conn.executemany("""
+                INSERT OR REPLACE INTO commits (id, project_id, repo_id, author_name, author_email, committed_at, message, files_changed_count)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """, commits)
 
     finally:
         conn.close()

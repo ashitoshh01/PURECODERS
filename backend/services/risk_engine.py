@@ -4,6 +4,7 @@ Calculates auditable risk scores from live SQLite records:
 Risk = OwnershipConcentration x Criticality x (1 - DocCoverage) x RecencyWeight
 """
 
+from datetime import datetime, timezone
 from database import get_db
 
 def recency_weight(days: int) -> float:
@@ -23,6 +24,7 @@ def calculate_project_risk(project_id: str, repo_id: str = None):
             "gaps_detected": [],
             "gaps_planted": [],
             "formula": "Risk = OwnershipConcentration x Criticality x (1 - DocCoverage) x RecencyWeight",
+            "latest_commit": None,
         }
 
     conn = get_db()
@@ -74,6 +76,25 @@ def calculate_project_risk(project_id: str, repo_id: str = None):
             contributions_map[art_id] = {}
         contributions_map[art_id][r["person_id"]] = r["count"]
 
+    # Fetch latest commit for real-time monitoring visibility
+    commit_row = None
+    if repo_id:
+        commit_row = conn.execute("""
+            SELECT id, repo_id, author_name, author_email, committed_at, message, files_changed_count
+            FROM commits
+            WHERE project_id = ? AND repo_id = ?
+            ORDER BY committed_at DESC LIMIT 1
+        """, (project_id, repo_id)).fetchone()
+
+    if not commit_row:
+        commit_row = conn.execute("""
+            SELECT id, repo_id, author_name, author_email, committed_at, message, files_changed_count
+            FROM commits
+            WHERE project_id = ?
+            ORDER BY committed_at DESC LIMIT 1
+        """, (project_id,)).fetchone()
+
+    latest_commit = dict(commit_row) if commit_row else None
     conn.close()
 
     ranked = []
@@ -100,11 +121,25 @@ def calculate_project_risk(project_id: str, repo_id: str = None):
             if risk > 0.15:
                 detected_gaps.append(art_id)
 
+        # Recency & update timestamp formatting
+        art_keys = a.keys() if hasattr(a, "keys") else []
+        updated_time = a["updated_at"] if "updated_at" in art_keys and a["updated_at"] else (a["created_at"] if "created_at" in art_keys else None)
+        days_touch = a["days_since_touch"] if "days_since_touch" in art_keys else 0
+        if days_touch == 0:
+            touch_label = "Just now"
+        elif days_touch == 1:
+            touch_label = "1d ago"
+        elif days_touch < 30:
+            touch_label = f"{days_touch}d ago"
+        else:
+            touch_label = f"{round(days_touch / 30)}mo ago"
+
         ranked.append({
             "artifact_id": art_id,
             "title": a["title"],
             "type": a["type"],
             "repo": a["repo"],
+            "path": a["path"] if "path" in art_keys else None,
             "risk_score": round(risk, 3),
             "risk_pct": round(risk * 100, 1),
             "components": {
@@ -115,6 +150,9 @@ def calculate_project_risk(project_id: str, repo_id: str = None):
             },
             "bus_factor_one": bus_factor_one,
             "is_planted_gap": is_planted,
+            "days_since_touch": days_touch,
+            "updated_at": updated_time,
+            "updated_label": touch_label,
         })
 
     # Sort descending by risk score
@@ -132,5 +170,7 @@ def calculate_project_risk(project_id: str, repo_id: str = None):
         "gaps_detected": detected_gaps,
         "gaps_planted": planted_gaps,
         "formula": "Risk = OwnershipConcentration x Criticality x (1 - DocCoverage) x RecencyWeight",
+        "last_updated_at": datetime.now(timezone.utc).isoformat(),
+        "latest_commit": latest_commit,
     }
 

@@ -24,7 +24,7 @@ export default function Handover({ active, onNavigateToInterview, activeProject,
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState(null);
   const [approving, setApproving] = useState(false);
-  const [activeSection, setActiveSection] = useState('all'); // 'all' | 'onboarding' | 'landmines' | 'loops' | 'contacts' | 'decisions'
+  const [activeSection, setActiveSection] = useState('onboarding'); // 'onboarding' | 'review' | 'landmines' | 'decisions' | 'loops' | 'contacts' | 'all'
 
   const loadHandover = async () => {
     setLoading(true);
@@ -182,22 +182,22 @@ export default function Handover({ active, onNavigateToInterview, activeProject,
       </div>
 
       {/* Navigation Filter Tabs */}
-      <div className="flex items-center gap-1 overflow-x-auto pb-1 border-b border-slate-200/90">
+      <div className="flex items-center gap-1.5 overflow-x-auto pb-1 border-b border-slate-200/90">
         {[
-          { id: 'all', label: 'Complete Document' },
-          { id: 'review', label: '🛡️ Reviewer Sign-off' },
           { id: 'onboarding', label: '🗓 Onboarding Path' },
+          { id: 'review', label: '🛡️ Reviewer Sign-off' },
           { id: 'landmines', label: '💣 Critical Landmines' },
+          { id: 'decisions', label: '📜 Decision Log' },
           { id: 'loops', label: '🔁 Open Loops' },
           { id: 'contacts', label: '👤 Who to Ask' },
-          { id: 'decisions', label: '📜 Decision Log' },
+          { id: 'all', label: '📄 View All Sections' },
         ].map((tab) => (
           <button
             key={tab.id}
             onClick={() => setActiveSection(tab.id)}
-            className={`text-xs px-3 py-1.5 rounded-lg font-semibold transition shrink-0 cursor-pointer ${
+            className={`text-xs px-3 py-1.5 rounded-xl font-semibold transition shrink-0 cursor-pointer ${
               activeSection === tab.id
-                ? 'bg-teal-50 text-teal-800 border border-teal-200/90'
+                ? 'bg-teal-50 text-teal-900 border border-teal-200/90 shadow-2xs'
                 : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50 border border-transparent'
             }`}
           >

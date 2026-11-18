@@ -1,22 +1,13 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import {
-  ShieldAlert,
-  Users,
-  Target,
-  FileCode2,
   RefreshCw,
   HelpCircle,
   X,
   AlertTriangle,
   ArrowRight,
-  FileCode,
-  GitPullRequest,
-  Ticket,
-  MessageSquare,
-  FileText,
   Sliders,
+  GitCommit,
 } from 'lucide-react';
-import MetricCard from '../common/MetricCard';
 import LoadingState from '../common/LoadingState';
 import ErrorBox from '../common/ErrorBox';
 import PageHeader from '../common/PageHeader';
@@ -35,22 +26,21 @@ export default function RiskMap({ onNavigateToInterview, activeProject, refreshK
 
   // Multi-repo and continuous monitoring state
   const [selectedRepoId, setSelectedRepoId] = useState('');
-  const [driftAlerts, setDriftAlerts] = useState([]);
   const [rescanning, setRescanning] = useState(false);
+  const [lastSyncTime, setLastSyncTime] = useState(new Date());
 
   const loadData = async (repoOverride = selectedRepoId) => {
     setLoading(true);
     setErr(null);
     try {
       const pId = activeProject?.id;
-      const [riskRes, artRes, driftRes] = await Promise.all([
+      const [riskRes, artRes] = await Promise.all([
         echoApi.getRiskMap(pId, repoOverride || null),
         echoApi.getArtifacts(pId).catch(() => ({ artifacts: [], edges: [] })),
-        echoApi.getDriftAlerts(pId).catch(() => ({ alerts: [] })),
       ]);
       setData(riskRes);
       setGraphData(artRes);
-      setDriftAlerts(driftRes.alerts || []);
+      setLastSyncTime(new Date());
     } catch (e) {
       setErr(e.message);
     } finally {
@@ -58,9 +48,29 @@ export default function RiskMap({ onNavigateToInterview, activeProject, refreshK
     }
   };
 
+  // Silent background refresh for continuous real-time sync (increments numbers automatically without spinner)
+  const silentSync = async () => {
+    try {
+      const pId = activeProject?.id;
+      const riskRes = await echoApi.getRiskMap(pId, selectedRepoId || null);
+      setData(riskRes);
+      setLastSyncTime(new Date());
+    } catch {
+      // background polling - ignore transient network hiccup
+    }
+  };
+
   useEffect(() => {
     loadData();
   }, [activeProject?.id, refreshKey, selectedRepoId]);
+
+  // Continuous background real-time sync interval (polling every 4 seconds)
+  useEffect(() => {
+    const timer = setInterval(() => {
+      silentSync();
+    }, 4000);
+    return () => clearInterval(timer);
+  }, [activeProject?.id, selectedRepoId]);
 
   const handleRescan = async () => {
     setRescanning(true);
@@ -74,14 +84,10 @@ export default function RiskMap({ onNavigateToInterview, activeProject, refreshK
     }
   };
 
-  const handleResolveAlert = async (alertId) => {
-    try {
-      await echoApi.resolveDriftAlert(alertId);
-      setDriftAlerts((prev) => prev.filter((a) => a.id !== alertId));
-    } catch (e) {
-      alert(`Failed to resolve alert: ${e.message}`);
-    }
-  };
+  const lastSyncFormatted = useMemo(() => {
+    if (!lastSyncTime) return 'Just now';
+    return lastSyncTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  }, [lastSyncTime]);
 
   // Derive distribution statistics from actual backend artifacts
   const stats = useMemo(() => {
@@ -112,24 +118,6 @@ export default function RiskMap({ onNavigateToInterview, activeProject, refreshK
       avgDocGap: Math.round((totalDocGap / list.length) * 100),
     };
   }, [data]);
-
-  // Derive top priority attention items from real data (top 3 highest risk artifacts)
-  const priorityItems = useMemo(() => {
-    if (!data?.artifacts || data.artifacts.length === 0) return [];
-    return [...data.artifacts]
-      .sort((a, b) => b.risk_score - a.risk_score)
-      .slice(0, 3);
-  }, [data]);
-
-  const typeIcons = {
-    module: FileCode,
-    script: FileCode,
-    config: FileCode,
-    pull_request: GitPullRequest,
-    ticket: Ticket,
-    chat_thread: MessageSquare,
-    document: FileText,
-  };
 
   if (loading && !data) {
     return <LoadingState label="Computing deterministic risk scores from repository evidence..." />;
@@ -212,226 +200,143 @@ export default function RiskMap({ onNavigateToInterview, activeProject, refreshK
         }
       />
 
-      {/* Continuous Monitoring: Knowledge Drift Alerts Banner */}
-      {driftAlerts.length > 0 && (
-        <div className="bg-gradient-to-r from-amber-50 to-rose-50 border border-amber-200/90 rounded-2xl p-4 shadow-xs space-y-3 fade-in">
-          <div className="flex items-center justify-between gap-2">
-            <div className="flex items-center gap-2 text-xs font-bold text-amber-950">
-              <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
-              <span>Continuous Monitoring: Knowledge Drift Detected ({driftAlerts.length} Active Alerts)</span>
+      {/* Unified Analytics Summary Strip (With tiny time in bottom corner & continuous sync) */}
+      <div className="bg-white rounded-2xl border border-slate-200/90 p-4 sm:p-5 shadow-xs">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 divide-y sm:divide-y-0 sm:divide-x divide-slate-100">
+          {/* Tile 1: High Risk Exposure */}
+          <div className="space-y-1">
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                High Risk Exposure
+              </span>
+              <span className="text-[10px] font-bold px-1.5 py-0.2 rounded-full bg-rose-50 text-rose-700 border border-rose-200">
+                ≥30% Score
+              </span>
             </div>
-            <span className="text-[11px] font-semibold text-amber-800 bg-amber-100 px-2 py-0.5 rounded-full border border-amber-200">
-              Pre-notice Warning
-            </span>
+            <div className="flex items-baseline gap-2">
+              <span className="text-2xl font-extrabold text-slate-900 font-mono">
+                {data?.high_risk_count ?? 0}
+              </span>
+              <span className="text-xs text-slate-500">artifacts</span>
+            </div>
+            <div className="text-[11px] text-slate-500 flex items-center gap-1.5 pt-0.5">
+              <span className="font-semibold text-rose-600">{stats.high} Critical</span>
+              <span className="text-slate-300">·</span>
+              <span className="font-semibold text-amber-600">{stats.med} Elevated</span>
+            </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
-            {driftAlerts.map((alert) => (
-              <div
-                key={alert.id}
-                className="bg-white/90 p-3 rounded-xl border border-amber-200/80 text-xs flex items-start justify-between gap-3 shadow-2xs"
-              >
-                <div>
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="font-mono text-[10px] font-bold px-1.5 py-0.2 rounded bg-slate-100 text-slate-700">
-                      {alert.artifact_id}
-                    </span>
-                    <span
-                      className={`text-[10px] font-bold px-2 py-0.2 rounded-full uppercase ${
-                        alert.severity === 'critical'
-                          ? 'bg-rose-100 text-rose-800 border border-rose-200'
-                          : 'bg-amber-100 text-amber-800 border border-amber-200'
-                      }`}
-                    >
-                      {alert.alert_type === 'stale_knowledge' ? 'Stale Code Drift' : 'Concentration Spike'}
-                    </span>
-                  </div>
-                  <p className="text-slate-700 text-xs leading-relaxed">{alert.message}</p>
-                </div>
+          {/* Tile 2: Bus Factor Hotspots */}
+          <div className="space-y-1 sm:pl-4 pt-3 sm:pt-0">
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                Single Ownership
+              </span>
+              <span className="text-[10px] font-bold px-1.5 py-0.2 rounded-full bg-amber-50 text-amber-800 border border-amber-200">
+                Bus Factor = 1
+              </span>
+            </div>
+            <div className="flex items-baseline gap-2">
+              <span className="text-2xl font-extrabold text-slate-900 font-mono">
+                {data?.bus_factor_violations?.length ?? 0}
+              </span>
+              <span className="text-xs text-slate-500">hotspots</span>
+            </div>
+            <p className="text-[11px] text-slate-500 truncate pt-0.5">
+              Concentrated knowledge with {leaverName}
+            </p>
+          </div>
 
-                <button
-                  onClick={() => handleResolveAlert(alert.id)}
-                  className="px-2.5 py-1 text-[11px] font-semibold text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded-lg transition shrink-0 cursor-pointer"
-                  title="Acknowledge and dismiss drift alert"
-                >
-                  Acknowledge
-                </button>
+          {/* Tile 3: Knowledge Gaps & Ownership */}
+          <div className="space-y-1 sm:pl-4 pt-3 sm:pt-0">
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                Average Gaps
+              </span>
+              <span className="text-[10px] font-bold px-1.5 py-0.2 rounded-full bg-teal-50 text-teal-800 border border-teal-200">
+                Deterministic
+              </span>
+            </div>
+            <div className="flex items-baseline gap-3">
+              <div className="flex items-baseline gap-1">
+                <span className="text-2xl font-extrabold text-slate-900 font-mono">
+                  {stats.avgDocGap}%
+                </span>
+                <span className="text-[11px] text-slate-500">Doc Gap</span>
               </div>
-            ))}
+              <span className="text-slate-300">/</span>
+              <div className="flex items-baseline gap-1">
+                <span className="text-base font-bold text-slate-800 font-mono">
+                  {stats.avgOwnership}%
+                </span>
+                <span className="text-[11px] text-slate-500">Ownership</span>
+              </div>
+            </div>
+            <p className="text-[11px] text-slate-500 pt-0.5">
+              Based on git blame &amp; documentation depth
+            </p>
+          </div>
+
+          {/* Tile 4: Monitored Scope */}
+          <div className="space-y-1 sm:pl-4 pt-3 sm:pt-0">
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                Monitored Scope
+              </span>
+              <span className="text-[10px] font-bold px-1.5 py-0.2 rounded-full bg-slate-100 text-slate-700 border border-slate-200">
+                Continuous
+              </span>
+            </div>
+            <div className="flex items-baseline gap-2">
+              <span className="text-2xl font-extrabold text-slate-900 font-mono">
+                {data?.artifacts?.length ?? 0}
+              </span>
+              <span className="text-xs text-slate-500 truncate">modules &amp; channels</span>
+            </div>
+            <p className="text-[11px] text-slate-500 truncate pt-0.5">
+              Across repository <span className="font-semibold text-slate-700">{repoName}</span>
+            </p>
           </div>
         </div>
-      )}
 
-      {/* 4 Metric KPI Cards (Standalone numerals & consistent badge placement) */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <MetricCard
-          label="High-Risk Artifacts"
-          value={data?.high_risk_count ?? 0}
-          subtext="Artifacts requiring immediate attention (≥30% score)"
-          icon={ShieldAlert}
-          accent="rose"
-          badge={data?.high_risk_count > 0 ? 'Action required' : 'Low exposure'}
-        />
-
-        <MetricCard
-          label="Bus-Factor = 1 Hotspots"
-          value={data?.bus_factor_violations?.length ?? 0}
-          subtext="Modules with concentrated single ownership"
-          icon={Users}
-          accent="amber"
-          badge={data?.bus_factor_violations?.length > 0 ? 'Single owner' : 'Redundant'}
-        />
-
-        <MetricCard
-          label="Identified Knowledge Gaps"
-          value={
-            data?.gaps_planted && data.gaps_planted.length > 0
-              ? data.gaps_detected?.length ?? 0
-              : data?.high_risk_count ?? 0
-          }
-          subtext={
-            data?.gaps_planted && data.gaps_planted.length > 0
-              ? `Out of ${data.gaps_planted.length} benchmark planted gaps`
-              : 'Gaps requiring exit interview coverage'
-          }
-          icon={Target}
-          accent="teal"
-          badge={data?.gaps_planted && data.gaps_planted.length > 0 ? 'Benchmark' : 'Live'}
-        />
-
-        <MetricCard
-          label="Total Monitored Artifacts"
-          value={data?.artifacts?.length ?? 0}
-          subtext={`Tracked across ${repoName}`}
-          icon={FileCode2}
-          accent="blue"
-        />
-      </div>
-
-      {/* Compact Horizontal Overview Strip (Reclaims vertical space) */}
-      <div className="bg-white rounded-xl border border-slate-200/90 px-4 py-3 shadow-xs">
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs divide-y md:divide-y-0 md:divide-x divide-slate-100">
-          <div className="pt-2 md:pt-0">
-            <span className="text-[11px] text-slate-400 font-semibold uppercase tracking-wider block">
-              Risk Severity Breakdown
-            </span>
-            <div className="flex items-center gap-2 mt-1">
-              <span className="font-bold text-rose-700">{stats.high} Critical</span>
-              <span className="text-slate-300">·</span>
-              <span className="font-semibold text-amber-800">{stats.med} Elevated</span>
-              <span className="text-slate-300">·</span>
-              <span className="font-semibold text-emerald-800">{stats.low} Low</span>
+        {/* Live Continuous Sync Strip Footer (With latest commit message & tiny time in bottom corner) */}
+        <div className="mt-4 pt-3 border-t border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-[11px]">
+          <div className="flex flex-wrap items-center gap-2 text-slate-500">
+            <div className="flex items-center gap-2 shrink-0">
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+              </span>
+              <span className="font-semibold text-slate-700">Continuous Monitoring Live</span>
             </div>
+            <span className="text-slate-300">·</span>
+            {data?.latest_commit ? (
+              <div
+                className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-slate-50 border border-slate-200 text-slate-700 font-mono text-[11px] max-w-md sm:max-w-lg truncate"
+                title={`Latest commit: ${data.latest_commit.message}${data.latest_commit.author_name ? ` by ${data.latest_commit.author_name}` : ''}`}
+              >
+                <GitCommit className="w-3.5 h-3.5 text-teal-600 shrink-0" />
+                <span className="font-medium text-slate-800 truncate">
+                  {data.latest_commit.message}
+                </span>
+                {data.latest_commit.author_name && (
+                  <span className="text-slate-400 shrink-0 font-sans">
+                    — {data.latest_commit.author_name}
+                  </span>
+                )}
+              </div>
+            ) : (
+              <span className="text-slate-400">Real-time sync via commit webhooks</span>
+            )}
           </div>
-
-          <div className="pt-2 md:pt-0 md:pl-4">
-            <span className="text-[11px] text-slate-400 font-semibold uppercase tracking-wider block">
-              Avg Leaver Ownership
-            </span>
-            <span className="text-sm font-bold text-slate-900 mt-1 block font-mono">
-              {stats.avgOwnership}%
-            </span>
-          </div>
-
-          <div className="pt-2 md:pt-0 md:pl-4">
-            <span className="text-[11px] text-slate-400 font-semibold uppercase tracking-wider block">
-              Avg Documentation Gap
-            </span>
-            <span className="text-sm font-bold text-slate-900 mt-1 block font-mono">
-              {stats.avgDocGap}%
-            </span>
-          </div>
-
-          <div className="pt-2 md:pt-0 md:pl-4">
-            <span className="text-[11px] text-slate-400 font-semibold uppercase tracking-wider block">
-              Tracked Contributor
-            </span>
-            <span className="text-xs font-bold text-slate-900 mt-1 block truncate">
-              {leaverName}
+          <div className="flex items-center gap-1.5 font-mono text-slate-500 sm:ml-auto self-end sm:self-auto shrink-0">
+            <span className="text-slate-400">Last updated:</span>
+            <span className="font-bold text-slate-700 bg-slate-100 px-2 py-0.5 rounded-md border border-slate-200/80">
+              {lastSyncFormatted}
             </span>
           </div>
         </div>
       </div>
-
-      {/* Priority Attention Section (Guides project leads to immediate risks) */}
-      {priorityItems.length > 0 && (
-        <div className="bg-white rounded-xl border border-slate-200/90 p-4 shadow-xs">
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-2">
-              <AlertTriangle className="w-4 h-4 text-rose-600" />
-              <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
-                Priority Attention Hotspots
-              </h3>
-            </div>
-            <span className="text-[11px] text-slate-400 font-medium">
-              Top 3 modules requiring documentation before handover
-            </span>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-            {priorityItems.map((item, idx) => {
-              const Icon = typeIcons[item.type] || FileCode;
-              return (
-                <div
-                  key={item.artifact_id}
-                  onClick={() => setSelectedArtifact(item)}
-                  className="p-3 rounded-xl border border-slate-200/80 bg-slate-50/50 hover:bg-white hover:border-slate-300 transition cursor-pointer flex flex-col justify-between group shadow-2xs"
-                >
-                  <div>
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="flex items-center gap-2 truncate">
-                        <div className="p-1.5 rounded-lg bg-white border border-slate-200 text-slate-700 shrink-0">
-                          <Icon className="w-3.5 h-3.5 text-slate-700" />
-                        </div>
-                        <span className="text-xs font-bold text-slate-900 truncate group-hover:text-teal-900 transition">
-                          {item.title}
-                        </span>
-                      </div>
-                      <RiskBadge pct={item.risk_pct} size="sm" showLabel={false} />
-                    </div>
-
-                    <div className="flex flex-wrap items-center gap-2 mt-2">
-                      <span className="text-[10px] font-mono text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded">
-                        {item.artifact_id}
-                      </span>
-                      {item.bus_factor_one && (
-                        <span className="text-[10px] font-semibold text-rose-700 bg-rose-50 px-1.5 py-0.2 rounded border border-rose-200">
-                          Bus factor 1
-                        </span>
-                      )}
-                    </div>
-
-                    <div className="text-[11px] text-slate-500 mt-2 space-y-0.5">
-                      <div>
-                        Ownership: <span className="font-semibold text-slate-800">{Math.round((item.components?.ownership_concentration ?? 0) * 100)}%</span> · Doc gap: <span className="font-semibold text-slate-800">{Math.round((item.components?.doc_gap ?? 0) * 100)}%</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="mt-3 pt-2 border-t border-slate-200/60 flex items-center justify-between text-[11px]">
-                    <span className="font-semibold text-teal-800 group-hover:text-teal-950 flex items-center gap-1">
-                      <span>Inspect Details</span>
-                      <ArrowRight className="w-3 h-3" />
-                    </span>
-                    {onNavigateToInterview && (
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onNavigateToInterview(item.artifact_id);
-                        }}
-                        className="text-slate-400 hover:text-slate-700 underline cursor-pointer"
-                      >
-                        Interview
-                      </button>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
 
       {/* Risk Table (Linear-Style File Explorer) */}
       <RiskTable

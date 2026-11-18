@@ -9,8 +9,10 @@ import {
   FolderGit2,
   Settings,
   ChevronRight,
+  ChevronDown,
   Sparkles,
   RotateCcw,
+  Plus,
 } from 'lucide-react';
 
 export default function Sidebar({
@@ -21,6 +23,7 @@ export default function Sidebar({
   desktopSidebarOpen = true,
   onToggleSidebar,
   onOpenSettings,
+  onOpenConnectModal,
   onResetDemo,
   resetting,
   projects = [],
@@ -122,6 +125,63 @@ export default function Sidebar({
           </button>
         </div>
 
+        {/* Project Workspace Selector & Ingest Repo Action */}
+        <div className="p-3 border-b border-slate-200/80 bg-slate-50/60 space-y-2.5">
+          {/* Project Workspace Dropdown */}
+          <div>
+            <div className="flex items-center justify-between mb-1 px-0.5">
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                Workspace
+              </span>
+              <span
+                className={`text-[10px] font-semibold px-1.5 py-0.2 rounded-md border ${
+                  isLiveMode
+                    ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                    : 'bg-teal-50 text-teal-800 border-teal-200'
+                }`}
+              >
+                {isLiveMode ? 'Live Git' : 'Benchmark'}
+              </span>
+            </div>
+
+            <div className="relative">
+              <div className="flex items-center gap-2 pl-2.5 pr-7 py-1.5 rounded-xl bg-white border border-slate-200 text-xs font-semibold text-slate-800 shadow-2xs hover:border-slate-300 transition">
+                <FolderGit2 className="w-3.5 h-3.5 text-slate-400 shrink-0 pointer-events-none" />
+                <select
+                  value={activeProject?.id || ''}
+                  onChange={(e) => onSelectProject && onSelectProject(e.target.value)}
+                  className="w-full appearance-none bg-transparent border-0 text-slate-900 font-bold focus:ring-0 cursor-pointer pr-3 py-0 text-xs truncate font-mono"
+                  aria-label="Select active project workspace"
+                >
+                  {projects.length === 0 ? (
+                    <option value="">No projects</option>
+                  ) : (
+                    projects.map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {p.name.split('—')[0].trim()} ({p.mode === 'live' ? 'Live Git' : 'Demo'})
+                      </option>
+                    ))
+                  )}
+                </select>
+                <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-2 pointer-events-none" />
+              </div>
+            </div>
+          </div>
+
+          {/* Ingest Repository Action Button */}
+          <button
+            onClick={() => {
+              if (onOpenConnectModal) onOpenConnectModal();
+              if (onCloseMobile) onCloseMobile();
+            }}
+            className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-xl text-xs font-bold text-[#071126] bg-[#18C6B0] hover:bg-[#0EB8A0] transition shadow-xs cursor-pointer"
+            title="Scan & ingest Git repository, Slack, or Jira"
+          >
+            <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
+            <span>Ingest Repository</span>
+          </button>
+        </div>
+
         {/* Navigation list */}
         <div className="flex-1 overflow-y-auto px-3 py-4 space-y-6">
           {/* Main Navigation Views */}
@@ -171,85 +231,34 @@ export default function Sidebar({
             </nav>
           </div>
 
-          {/* Tracked Projects / Repositories Section (Clean, browsing only) */}
-          <div>
-            <div className="px-2 mb-2 text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
-              Tracked Projects
-            </div>
-            <div className="space-y-1">
-              {projects.length === 0 ? (
-                <div className="p-3 text-center rounded-xl border border-dashed border-slate-200 text-slate-400 text-xs">
-                  No projects tracked
-                </div>
-              ) : (
-                projects.map((proj) => {
-                  const isSelected = activeProject?.id === proj.id;
-                  const isLive = proj.mode === 'live';
-                  return (
-                    <button
-                      key={proj.id}
-                      onClick={() => onSelectProject && onSelectProject(proj.id)}
-                      className={`w-full text-left flex items-center justify-between px-3 py-2 rounded-xl text-xs font-mono transition cursor-pointer ${
-                        isSelected
-                          ? isLive
-                            ? 'bg-emerald-50 text-emerald-900 font-medium border border-emerald-200/80 shadow-2xs'
-                            : 'bg-teal-50 text-teal-900 font-medium border border-teal-200/80 shadow-2xs'
-                          : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
-                      }`}
-                    >
-                      <div className="flex items-center gap-2 truncate">
-                        <FolderGit2
-                          className={`w-3.5 h-3.5 shrink-0 ${
-                            isSelected
-                              ? isLive
-                                ? 'text-emerald-600'
-                                : 'text-[#0EB8A0]'
-                              : 'text-slate-400'
-                          }`}
-                        />
-                        <span className="truncate">{proj.name.split('—')[0].trim()}</span>
-                      </div>
-                      {isSelected && (
-                        <span
-                          className={`w-2 h-2 rounded-full shrink-0 ${
-                            isLive ? 'bg-emerald-500' : 'bg-[#18C6B0]'
-                          }`}
-                          title="Active Project"
-                        />
-                      )}
-                    </button>
-                  );
-                })
-              )}
-            </div>
-          </div>
+          {/* Tracked Projects / Repositories Section removed to avoid duplication with Topbar */}
 
           {/* Leaver Context Card */}
-          <div className="p-3 rounded-xl bg-slate-50 border border-slate-200/80 space-y-2">
+          <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200/80 space-y-2.5">
             <div className="flex items-center justify-between">
               <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
-                Leaver Context
+                Handover Parties
               </span>
-              <span className="text-[10px] text-slate-400 font-medium">
-                {isLiveMode ? 'Git attribution' : activeProject ? 'Benchmark rubric' : 'Clean state'}
+              <span className="text-[10px] text-slate-400 font-mono">
+                {isLiveMode ? 'Live Git' : 'Benchmark'}
               </span>
             </div>
-            <div className="text-xs space-y-1.5 text-slate-600">
+            <div className="text-xs space-y-2 text-slate-600">
               <div className="flex items-center justify-between">
                 <span className="text-slate-500">Departing:</span>
-                <span className="font-semibold text-slate-800">
+                <span className="font-semibold text-slate-800 truncate max-w-[120px]">
                   {leaver ? `${leaver.name}` : 'None'}
                 </span>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-slate-500">Successor:</span>
-                <span className="font-semibold text-slate-800">
+                <span className="font-semibold text-slate-800 truncate max-w-[120px]">
                   {successor ? `${successor.name}` : 'None'}
                 </span>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-slate-500">Manager:</span>
-                <span className="font-semibold text-slate-800">
+                <span className="font-semibold text-slate-800 truncate max-w-[120px]">
                   {manager ? `${manager.name}` : 'None'}
                 </span>
               </div>

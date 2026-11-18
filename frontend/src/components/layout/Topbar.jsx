@@ -1,32 +1,17 @@
 import React, { useState, useRef, useEffect } from 'react';
-import {
-  Menu,
-  ChevronRight,
-  FolderGit2,
-  ArrowRightLeft,
-  Plus,
-  LogOut,
-  ChevronDown,
-} from 'lucide-react';
+import { Menu, LogOut } from 'lucide-react';
 
 export default function Topbar({
   activeTab,
   onOpenMobile,
   desktopSidebarOpen = true,
   onToggleSidebar,
-  backendStatus = 'online', // 'checking' | 'online' | 'offline'
-  onRetryConnection,
-  projects = [],
-  activeProject,
-  onSelectProject,
-  onOpenConnectModal,
   successor,
   leaver,
   currentUser,
   onLogout,
   onSwitchRole,
 }) {
-  const isLiveMode = activeProject?.mode === 'live';
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const menuRef = useRef(null);
 
@@ -79,24 +64,10 @@ export default function Topbar({
     ask: 'Ask Echo AI Assistant',
   };
 
-  const isOnline = backendStatus === 'online';
-  const isChecking = backendStatus === 'checking';
-
-  // Toggle between demo and live mode
-  const handleToggleMode = () => {
-    if (!onSelectProject || projects.length < 2) return;
-    const targetProject = projects.find((p) =>
-      isLiveMode ? p.mode === 'demo' : p.mode === 'live'
-    );
-    if (targetProject) {
-      onSelectProject(targetProject.id);
-    }
-  };
-
   return (
     <header className="h-16 bg-white/95 backdrop-blur-xs border-b border-slate-200/90 sticky top-0 z-30 px-4 sm:px-6 flex items-center justify-between">
-      {/* Left: Mobile/Desktop toggle hamburger + Vercel-style Project Switcher + Breadcrumb */}
-      <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+      {/* Left: Mobile/Desktop toggle hamburger + Clean Title */}
+      <div className="flex items-center gap-3 min-w-0">
         <button
           onClick={onToggleSidebar || onOpenMobile}
           className={`p-1.5 rounded-lg text-slate-500 hover:text-slate-800 hover:bg-slate-100 cursor-pointer ${
@@ -108,126 +79,28 @@ export default function Topbar({
           <Menu className="w-5 h-5" />
         </button>
 
-        {/* Project Switcher Pill */}
-        <div className="relative inline-flex items-center">
-          <div className="flex items-center gap-1.5 pl-2.5 pr-7 py-1 text-xs font-semibold rounded-lg bg-slate-100/90 text-slate-800 border border-slate-200/80 hover:bg-slate-100 transition shadow-2xs font-mono">
-            <FolderGit2 className="w-3.5 h-3.5 text-slate-500 shrink-0 pointer-events-none" />
-            <select
-              value={activeProject?.id || ''}
-              onChange={(e) => onSelectProject && onSelectProject(e.target.value)}
-              className="appearance-none bg-transparent border-0 text-slate-800 font-semibold focus:ring-0 cursor-pointer pr-1 py-0.5 max-w-[130px] sm:max-w-[200px] truncate"
-              aria-label="Select active project workspace"
-            >
-              {projects.length === 0 ? (
-                <option value="">No projects</option>
-              ) : (
-                projects.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.name.split('—')[0].trim()} ({p.mode === 'live' ? 'Live Git' : 'Demo'})
-                  </option>
-                ))
-              )}
-            </select>
-          </div>
-          <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-2 pointer-events-none" />
-        </div>
-
-        {/* Mode Switcher Pill */}
-        {projects.length > 1 && (
-          <button
-            onClick={handleToggleMode}
-            className={`hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold border transition shadow-2xs cursor-pointer ${
-              isLiveMode
-                ? 'bg-emerald-50 text-emerald-800 border-emerald-200 hover:bg-emerald-100'
-                : 'bg-teal-50 text-teal-800 border-teal-200 hover:bg-teal-100'
-            }`}
-            title="Click to toggle between Live Git Ingestion and Benchmark Rubric Dataset"
-          >
-            <span
-              className={`w-1.5 h-1.5 rounded-full ${
-                isLiveMode ? 'bg-emerald-500 animate-pulse' : 'bg-[#18C6B0]'
-              }`}
-            />
-            <span>{isLiveMode ? 'Live Git: ECHO' : 'Benchmark Rubric'}</span>
-            <ArrowRightLeft className="w-3 h-3 text-slate-400 ml-0.5" />
-          </button>
-        )}
-
-        {/* Breadcrumb Navigation */}
-        <nav className="hidden md:flex items-center gap-1.5 text-xs text-slate-400 font-medium min-w-0">
-          <ChevronRight className="w-3.5 h-3.5 text-slate-300 shrink-0" />
-          <span className="text-slate-900 font-semibold truncate">
+        {/* View / Page Title */}
+        <div className="flex items-center gap-2 min-w-0">
+          <span className="text-base font-bold text-slate-900 tracking-tight truncate">
             {pageTitles[activeTab] || 'Overview'}
           </span>
-        </nav>
+        </div>
       </div>
 
-      {/* Right Controls: Ingest Repository + Subtle Connection Status + User Menu */}
-      <div className="flex items-center gap-2 sm:gap-3 shrink-0">
-        {/* Primary Ingest Repository Action Button */}
-        <button
-          onClick={onOpenConnectModal}
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-[#071126] bg-[#18C6B0] hover:bg-[#0EB8A0] rounded-xl shadow-xs transition cursor-pointer"
-          title="Scan and ingest a Git repository"
-        >
-          <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
-          <span>Ingest Repository</span>
-        </button>
-
-        {/* Subtle, Non-Intrusive Connection Status */}
-        <button
-          onClick={onRetryConnection}
-          className={`flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-xl border transition cursor-pointer ${
-            isOnline
-              ? 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
-              : isChecking
-              ? 'bg-amber-50 text-amber-800 border-amber-200'
-              : 'bg-rose-50 text-rose-800 border-rose-200 hover:bg-rose-100'
-          }`}
-          title={
-            isOnline
-              ? 'Engine connected & synchronized on port 8000 (SQLite)'
-              : 'Connection interrupted. Click to retry.'
-          }
-        >
-          <span
-            className={`w-2 h-2 rounded-full ${
-              isOnline
-                ? 'bg-emerald-500 animate-pulse'
-                : isChecking
-                ? 'bg-amber-500 animate-spin'
-                : 'bg-rose-500'
-            }`}
-          />
-          <span className="hidden sm:inline font-semibold text-[11px]">
-            {isOnline ? 'Connected' : isChecking ? 'Connecting...' : 'Offline (Retry)'}
-          </span>
-        </button>
-
-        {/* Authenticated User Profile Menu (Unclipped & Spacious) */}
-        <div className="relative pl-1 border-l border-slate-200/90" ref={menuRef}>
+      {/* Right Controls: Single Circular Profile Avatar Icon */}
+      <div className="flex items-center gap-2 shrink-0">
+        <div className="relative" ref={menuRef}>
           <button
             onClick={() => setUserMenuOpen(!userMenuOpen)}
-            className="flex items-center gap-2.5 px-2 py-1 rounded-xl hover:bg-slate-100 transition cursor-pointer text-left focus:outline-none"
+            className="p-1 rounded-full hover:bg-slate-100 transition cursor-pointer focus:outline-none"
             aria-label="User profile and session menu"
+            title={currentUser?.full_name || 'User Profile'}
           >
             <div
-              className={`w-8 h-8 rounded-full border flex items-center justify-center text-xs font-bold uppercase shadow-2xs ${activeRoleConfig.avatar}`}
+              className={`w-9 h-9 rounded-full border flex items-center justify-center text-xs font-bold uppercase shadow-2xs transition hover:scale-105 ${activeRoleConfig.avatar}`}
             >
               {currentUser?.full_name ? currentUser.full_name.charAt(0) : 'U'}
             </div>
-            <div className="hidden lg:block text-left">
-              <div className="text-xs font-bold text-slate-900 leading-tight">
-                {currentUser?.full_name || 'ECHO User'}
-              </div>
-              <div className="flex items-center gap-1 mt-0.5">
-                <span className={`w-1.5 h-1.5 rounded-full ${activeRoleConfig.dot}`} />
-                <span className="text-[10px] text-slate-500 font-medium leading-none">
-                  {currentUser?.role_display || activeRoleConfig.label}
-                </span>
-              </div>
-            </div>
-            <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
           </button>
 
           {/* User Dropdown Menu */}
