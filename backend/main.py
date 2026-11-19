@@ -19,6 +19,7 @@ from pydantic import BaseModel, Field
 from database import init_db, get_db, get_active_project, reset_database
 from fixtures.demo_seed import seed_demo_data, DEMO_PROJECT_ID
 from services.risk_engine import calculate_project_risk
+from services.cluster_graph_service import get_cluster_graph_data
 from services.interview_engine import (
     sync_project_questions,
     retrieve_answers,
@@ -820,6 +821,19 @@ def get_artifacts(project_id: Optional[str] = None):
         "artifacts": [dict(r) for r in art_rows],
         "edges": [dict(r) for r in edge_rows]
     }
+
+@app.get("/api/graph/cluster-viz")
+def get_cluster_viz(
+    project_id: Optional[str] = None,
+    dataset: Optional[str] = "auto"
+):
+    """
+    Returns domain-clustered architectural dependency graph data with calculated risk weights,
+    bus factors, and interconnected nodes matching the CardDemo modernization visualization.
+    Supports dataset='carddemo', dataset='workspace', or dataset='auto'.
+    """
+    p_id = project_id or (get_active_project() or {}).get("id")
+    return get_cluster_graph_data(project_id=p_id, dataset=dataset or "auto")
 
 @app.get("/api/artifacts/{artifact_id}")
 def get_artifact_details(artifact_id: str, project_id: Optional[str] = None):

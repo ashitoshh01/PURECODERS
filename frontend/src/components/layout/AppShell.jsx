@@ -30,10 +30,24 @@ export default function AppShell({
   children,
 }) {
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [desktopSidebarOpen, setDesktopSidebarOpen] = useState(true);
+  const [desktopSidebarOpen, setDesktopSidebarOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [connectModalOpen, setConnectModalOpen] = useState(false);
   const [showTourPopup, setShowTourPopup] = useState(false);
+
+  // Automatically close sidebar when navigating to architecture view for edge-to-edge canvas
+  useEffect(() => {
+    if (activeTab === 'architecture') {
+      setDesktopSidebarOpen(false);
+    }
+  }, [activeTab]);
+
+  // Global event listener to open ConnectRepoModal from anywhere (e.g. Architecture graph notice popup)
+  useEffect(() => {
+    const handleOpenConnect = () => setConnectModalOpen(true);
+    window.addEventListener('echo:open-connect-repo', handleOpenConnect);
+    return () => window.removeEventListener('echo:open-connect-repo', handleOpenConnect);
+  }, []);
 
   // Show the tour popup every time any user gets in / logs in
   useEffect(() => {
@@ -60,10 +74,12 @@ export default function AppShell({
     }, 120);
   };
 
+  const isImmersivePage = activeTab === 'ask' || activeTab === 'architecture';
+
   return (
     <div
       className={`min-h-screen ${
-        activeTab === 'ask' ? 'h-screen overflow-hidden bg-white' : 'bg-slate-50'
+        isImmersivePage ? 'h-screen overflow-hidden bg-white' : 'bg-slate-50'
       } flex flex-col font-sans text-slate-900 selection:bg-[#18C6B0]/20 selection:text-slate-900`}
     >
       {/* Persistent Sidebar */}
@@ -112,14 +128,14 @@ export default function AppShell({
         className={`${
           desktopSidebarOpen ? 'lg:pl-64' : 'lg:pl-0'
         } ${
-          activeTab === 'ask'
+          isImmersivePage
             ? 'pl-0 h-screen overflow-hidden bg-white'
             : 'pl-8 sm:pl-10 lg:pl-0'
         } flex flex-col flex-1 min-w-0 transition-all duration-200 ease-in-out`}
       >
         <main
           className={`flex-1 w-full ${
-            activeTab === 'ask'
+            isImmersivePage
               ? 'p-0 h-full overflow-hidden flex flex-col bg-white'
               : 'p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto'
           }`}
@@ -127,7 +143,7 @@ export default function AppShell({
           {children}
         </main>
 
-        {activeTab !== 'ask' && (
+        {!isImmersivePage && (
           <footer className="py-4 px-6 border-t border-slate-200/90 bg-white text-center text-xs text-slate-500 flex flex-col sm:flex-row items-center justify-between gap-2">
             <span>Echo Knowledge-Risk Engine · SQLite Persistent Database</span>
             <div className="flex items-center gap-3">

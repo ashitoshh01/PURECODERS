@@ -174,6 +174,13 @@ export const echoApi = {
   },
   getArtifacts: (projectId = null) => api(`/api/artifacts${projectId ? `?project_id=${projectId}` : ''}`),
   getArtifactDetails: (artifactId, projectId = null) => api(`/api/artifacts/${artifactId}${projectId ? `?project_id=${projectId}` : ''}`),
+  getClusterViz: (projectId = null, dataset = 'auto') => {
+    const q = new URLSearchParams();
+    if (projectId) q.set('project_id', projectId);
+    if (dataset) q.set('dataset', dataset);
+    const qs = q.toString();
+    return api(`/api/graph/cluster-viz${qs ? `?${qs}` : ''}`);
+  },
 
   // Voice Interview & Structured Extraction
   transcribeVoiceAnswer: (payload) => api('/api/interview/transcribe', {

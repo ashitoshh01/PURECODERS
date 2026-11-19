@@ -81,6 +81,9 @@ python test_e2e_verification.py
 
 # Run native GitHub integration tests
 python test_github_integration.py
+
+# Run clustered architecture visualization tests
+python test_cluster_viz.py
 ```
 
 ---
@@ -96,6 +99,7 @@ PURECODERS/
 │   ├── services/
 │   │   ├── auth_service.py      # Password hashing, JWTs, sessions & password reset
 │   │   ├── risk_engine.py       # Deterministic knowledge-risk algorithm
+│   │   ├── cluster_graph_service.py # Clustered architecture dependency graph generator
 │   │   ├── interview_engine.py  # Grounded interview question generation & answers
 │   │   ├── github_service.py    # Native GitHub cloning, commits & AST analysis
 │   │   ├── git_scanner.py       # Local git repository scanner

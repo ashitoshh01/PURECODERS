@@ -16,6 +16,7 @@ import {
   Check,
   LogOut,
   X,
+  Share2,
 } from 'lucide-react';
 
 export default function Sidebar({
@@ -109,6 +110,13 @@ export default function Sidebar({
       icon: Compass,
       badge: 'Live',
       description: 'Deterministic risk engine',
+    },
+    {
+      id: 'architecture',
+      label: 'Architecture Graph',
+      icon: Share2,
+      badge: 'Viz',
+      description: 'Domain-clustered topology',
     },
     {
       id: 'interview',

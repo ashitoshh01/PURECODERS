@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import AppShell from './components/layout/AppShell';
 import RiskMap from './components/risk/RiskMap';
+import ArchitectureClusterGraph from './components/risk/ArchitectureClusterGraph';
 import ExitInterview from './components/interview/ExitInterview';
 import Handover from './components/handover/Handover';
 import AskEcho from './components/ask/AskEcho';
@@ -16,6 +17,7 @@ function getTabFromPath(pathname) {
   if (clean === 'interview') return 'interview';
   if (clean === 'handover') return 'handover';
   if (clean === 'ask' || clean === 'chat' || clean === 'ai') return 'ask';
+  if (clean === 'architecture' || clean === 'graph' || clean === 'cluster' || clean === 'cluster-viz') return 'architecture';
   if (clean === 'risk' || clean === 'dashboard' || clean === '') return 'risk';
   return 'risk';
 }
@@ -387,9 +389,20 @@ export default function App() {
       <div style={{ display: activeTab === 'risk' ? 'block' : 'none' }}>
         <RiskMap
           onNavigateToInterview={handleNavigateToInterview}
+          onNavigateToClusterViz={() => handleTabChange('architecture')}
           activeProject={activeProject}
           refreshKey={handoverKey}
           currentUser={currentUser}
+        />
+      </div>
+
+      <div className={activeTab === 'architecture' ? 'flex-1 flex flex-col h-full w-full' : 'hidden'}>
+        <ArchitectureClusterGraph
+          activeProject={activeProject}
+          onNavigateToInterview={handleNavigateToInterview}
+          onBackToRiskMap={() => handleTabChange('risk')}
+          currentUser={currentUser}
+          activeTab={activeTab}
         />
       </div>
 

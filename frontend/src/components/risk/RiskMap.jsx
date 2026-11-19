@@ -12,6 +12,8 @@ import {
   FileText,
   Layers,
   Check,
+  Share2,
+  Sparkles,
 } from 'lucide-react';
 import LoadingState from '../common/LoadingState';
 import ErrorBox from '../common/ErrorBox';
@@ -101,7 +103,7 @@ const METRIC_EXPLANATIONS = {
   }
 };
 
-export default function RiskMap({ onNavigateToInterview, activeProject, refreshKey }) {
+export default function RiskMap({ onNavigateToInterview, activeProject, refreshKey, onNavigateToClusterViz }) {
   const [data, setData] = useState(null);
   const [graphData, setGraphData] = useState(null);
   const [loading, setLoading] = useState(true);

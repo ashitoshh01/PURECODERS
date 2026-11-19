@@ -29,12 +29,6 @@ export function startEchoTour({ onSelectTab, onOpenSidebar, onComplete }) {
     doneBtnText: 'Finish Tour',
     allowClose: true,
     smoothScroll: true,
-    onHighlightStarted: (element, step) => {
-      // If the step specifies a tab to view, switch to it smoothly
-      if (step?.data?.tab && typeof onSelectTab === 'function') {
-        onSelectTab(step.data.tab);
-      }
-    },
     onDestroyed: () => {
       if (typeof onComplete === 'function') {
         onComplete();
@@ -104,10 +98,27 @@ export function startEchoTour({ onSelectTab, onOpenSidebar, onComplete }) {
         },
       },
       {
+        element: '#tour-nav-architecture',
+        data: { tab: 'architecture' },
+        popover: {
+          title: 'Step 2: Architecture & Topology Graph',
+          description: `
+            <div class="space-y-2 text-xs text-slate-600 leading-relaxed">
+              <p>Explore an interactive <strong>domain-clustered topology</strong> (CardDemo reference visualization) mapping online transactions, core batch jobs, and shared data stores with single-owner risk halos.</p>
+              <div class="inline-flex items-center gap-1.5 text-[11px] font-semibold text-teal-800 bg-teal-50 px-2 py-0.5 rounded-md border border-teal-200">
+                Visual Blast Radius
+              </div>
+            </div>
+          `,
+          side: 'right',
+          align: 'center',
+        },
+      },
+      {
         element: '#tour-nav-interview',
         data: { tab: 'interview' },
         popover: {
-          title: 'Step 2: Grounded AI Interviews',
+          title: 'Step 3: Grounded AI Interviews',
           description: `
             <div class="space-y-2 text-xs text-slate-600 leading-relaxed">
               <p>Instead of manual forms, departing engineers take targeted AI interviews. The AI extracts unwritten architectural secrets, deployment caveats, and runbooks.</p>
@@ -124,7 +135,7 @@ export function startEchoTour({ onSelectTab, onOpenSidebar, onComplete }) {
         element: '#tour-nav-handover',
         data: { tab: 'handover' },
         popover: {
-          title: 'Step 3: Structured Handover Plan',
+          title: 'Step 4: Structured Handover Plan',
           description: `
             <div class="space-y-2 text-xs text-slate-600 leading-relaxed">
               <p>Automatically compiles interview answers and codebase metadata into an actionable handover package with concrete verification tasks for the incoming successor.</p>
@@ -141,7 +152,7 @@ export function startEchoTour({ onSelectTab, onOpenSidebar, onComplete }) {
         element: '#tour-nav-ask',
         data: { tab: 'ask' },
         popover: {
-          title: 'Step 4: Ask Echo Copilot',
+          title: 'Step 5: Ask Echo Copilot',
           description: `
             <div class="space-y-2 text-xs text-slate-600 leading-relaxed">
               <p>Successors can chat with Echo to query the preserved knowledge base, understand why design decisions were made, and resolve roadblocks quickly.</p>
