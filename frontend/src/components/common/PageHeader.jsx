@@ -7,8 +7,8 @@ export default function PageHeader({
   actions,
 }) {
   return (
-    <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4 pb-5 mb-6 border-b border-slate-200/90">
-      <div className="min-w-0 flex-1">
+    <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-5 mb-6 border-b border-slate-200/90">
+      <div className="min-w-0 flex-1 sm:min-w-[280px]">
         <div className="flex items-center gap-2.5 flex-wrap">
           <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900 leading-tight">
             {title}
@@ -26,7 +26,7 @@ export default function PageHeader({
         )}
       </div>
       {actions && (
-        <div className="flex flex-wrap items-center gap-2 w-full xl:w-auto xl:justify-end shrink-0">
+        <div className="flex flex-wrap items-center gap-2 w-full lg:w-auto lg:justify-end">
           {actions}
         </div>
       )}

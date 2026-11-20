@@ -262,6 +262,12 @@ def seed_demo_data(reset: bool = False):
 
     # 14. Initial Drift & Freshness Detection Run
     try:
+        from services.interview_engine import sync_project_questions
+        sync_project_questions(DEMO_PROJECT_ID)
+    except Exception:
+        pass
+
+    try:
         from services.freshness_service import detect_freshness_drift
         detect_freshness_drift(DEMO_PROJECT_ID)
     except Exception:

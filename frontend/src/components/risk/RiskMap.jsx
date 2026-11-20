@@ -112,8 +112,7 @@ export default function RiskMap({ onNavigateToInterview, activeProject, refreshK
   const [formulaModalOpen, setFormulaModalOpen] = useState(false);
   const [activeMetricModal, setActiveMetricModal] = useState(null);
 
-  // Multi-repo and continuous monitoring state
-  const [selectedRepoId, setSelectedRepoId] = useState('');
+  // Continuous monitoring state
   const [rescanning, setRescanning] = useState(false);
   const [lastSyncTime, setLastSyncTime] = useState(new Date());
 
@@ -122,13 +121,13 @@ export default function RiskMap({ onNavigateToInterview, activeProject, refreshK
   const [calibrationStep, setCalibrationStep] = useState('');
   const [justCalibrated, setJustCalibrated] = useState(false);
 
-  const loadData = async (repoOverride = selectedRepoId) => {
+  const loadData = async () => {
     setLoading(true);
     setErr(null);
     try {
       const pId = activeProject?.id;
       const [riskRes, artRes] = await Promise.all([
-        echoApi.getRiskMap(pId, repoOverride || null),
+        echoApi.getRiskMap(pId),
         echoApi.getArtifacts(pId).catch(() => ({ artifacts: [], edges: [] })),
       ]);
       setData(riskRes);
@@ -166,7 +165,7 @@ export default function RiskMap({ onNavigateToInterview, activeProject, refreshK
   const silentSync = async () => {
     try {
       const pId = activeProject?.id;
-      const riskRes = await echoApi.getRiskMap(pId, selectedRepoId || null);
+      const riskRes = await echoApi.getRiskMap(pId);
       setData(riskRes);
       setLastSyncTime(new Date());
     } catch {
@@ -176,7 +175,7 @@ export default function RiskMap({ onNavigateToInterview, activeProject, refreshK
 
   useEffect(() => {
     loadData();
-  }, [activeProject?.id, refreshKey, selectedRepoId]);
+  }, [activeProject?.id, refreshKey]);
 
   // Continuous background real-time sync interval (polling every 4 seconds)
   useEffect(() => {
@@ -184,7 +183,7 @@ export default function RiskMap({ onNavigateToInterview, activeProject, refreshK
       silentSync();
     }, 4000);
     return () => clearInterval(timer);
-  }, [activeProject?.id, selectedRepoId]);
+  }, [activeProject?.id]);
 
   // Global ESC key listener to close metric explainer & formula modals
   useEffect(() => {
@@ -269,32 +268,13 @@ export default function RiskMap({ onNavigateToInterview, activeProject, refreshK
 
   return (
     <div className="space-y-6 fade-in">
-      {/* Page Header (Clean, concise, with multi-repo filter and continuous monitoring controls) */}
+      {/* Page Header (Clean, concise, with continuous monitoring controls) */}
       <PageHeader
         title="Knowledge Risk Map"
         subtitle={`Knowledge concentration and single-owner hotspots for ${leaverName}.`}
         badge={activeProject?.mode === 'live' ? 'Live Git Scanned' : 'Deterministic Benchmark'}
         actions={
           <div className="flex flex-wrap items-center gap-2">
-            {/* Multi-Repository Workspace Dropdown */}
-            {(data?.repositories || []).length > 0 && (
-              <div className="flex items-center gap-1.5 bg-white border border-slate-200 rounded-lg px-2.5 py-1 text-xs shadow-2xs">
-                <span className="text-[11px] font-semibold text-slate-400">Repo:</span>
-                <select
-                  value={selectedRepoId}
-                  onChange={(e) => setSelectedRepoId(e.target.value)}
-                  className="bg-transparent font-bold text-slate-800 focus:outline-none cursor-pointer text-xs"
-                >
-                  <option value="">All Repositories ({data.repositories.length})</option>
-                  {data.repositories.map((r) => (
-                    <option key={r.id} value={r.id}>
-                      {r.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            )}
-
             {/* Continuous Monitoring: Re-scan Commits */}
             <button
               onClick={handleRescan}
