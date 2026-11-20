@@ -166,6 +166,23 @@ export function startEchoTour({ onSelectTab, onOpenSidebar, onComplete }) {
         },
       },
       {
+        element: '#tour-nav-freshness',
+        data: { tab: 'freshness' },
+        popover: {
+          title: 'Step 6: Knowledge Freshness Monitor',
+          description: `
+            <div class="space-y-2 text-xs text-slate-600 leading-relaxed">
+              <p>Guards captured institutional knowledge against code rot by automatically detecting conflicts between documented decisions/landmines and live commits/PRs.</p>
+              <div class="inline-flex items-center gap-1.5 text-[11px] font-semibold text-amber-800 bg-amber-50 px-2 py-0.5 rounded-md border border-amber-200">
+                Continuous Drift & Contradiction Detection
+              </div>
+            </div>
+          `,
+          side: 'right',
+          align: 'center',
+        },
+      },
+      {
         element: '#tour-engine-connectors-btn',
         data: { tab: 'risk' },
         popover: {

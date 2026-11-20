@@ -392,6 +392,7 @@ export default function App() {
         <RiskMap
           onNavigateToInterview={handleNavigateToInterview}
           onNavigateToClusterViz={() => handleTabChange('architecture')}
+          onNavigateToFreshness={() => handleTabChange('freshness')}
           activeProject={activeProject}
           refreshKey={handoverKey}
           currentUser={currentUser}

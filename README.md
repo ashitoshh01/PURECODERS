@@ -8,8 +8,15 @@
 [![ASI:One](https://img.shields.io/badge/ASI:One-AI_Engine-8A2BE2?style=flat)](https://asi1.ai)
 
 > **When a key engineer resigns, most teams summarize what they wrote down. Echo discovers what only they know.**  
-> Echo continuously scans codebases, commit histories, and ownership graphs to compute deterministic knowledge-risk scores, generate evidence-backed exit interviews, create customized successor packages, and provide a grounded AI copilot.
+> Echo continuously scans codebases, commit histories, and ownership graphs to compute deterministic knowledge-risk scores, generate evidence-backed exit interviews, create customized successor packages, provide a grounded AI copilot, and continuously guard documented knowledge against code rot with **Knowledge Freshness Monitoring**.
 
+### 🌟 Core Capabilities
+- **Deterministic Knowledge-Risk Scoring:** Quantifies bus factor risks (≥80% single-author ownership), documentation gaps, and planted knowledge gaps.
+- **Interactive Architecture & Cluster Topology:** Domain-clustered visual topology (CardDemo modernization visualization) mapping transactions, batch jobs, and shared data stores with visual risk halos.
+- **Evidence-Backed Exit Interviews:** Auto-generates targeted questions for departing developers with audio voice transcription and structured decision extraction.
+- **Continuous Knowledge Freshness Monitoring:** Cross-references documented decisions and landmines against git commits & PRs to detect parameter drift (e.g. modified timeouts/retry limits) and breaking refactors, backed by a reviewer re-verification workflow.
+- **Personalized Successor Handover:** Generates progressive onboarding paths, landmines to avoid, open questions, and code ownership heatmaps.
+- **Grounded Copilot (Ask Echo):** Honest AI chat powered by ASI:One that cites captured artifacts and candidly admits when answers are undocumented.
 
 ### Key Authentication Features
 - **Real Backend Authentication:** Powered by FastAPI, SQLite persistence, and secure `bcrypt` salted password hashing. Passwords are never stored in plaintext.
@@ -22,7 +29,7 @@
   - **Departing Contributor (`departing_contributor`):** Assigned to prioritized exit interviews to capture critical tacit decisions before offboarding.
   - **Incoming Contributor (`incoming_contributor`):** Accesses approved handover packages, interactive onboarding pathways, and Ask Echo AI assistant.
   - **Reviewer (`reviewer`):** Verifies captured knowledge artifacts, audits decision rationale, and signs off on handover packages.
-- **Protected Application Routes:** All dashboard tabs (`/`, `/risk`, `/interview`, `/handover`, `/ask`) require an active session. Unauthenticated requests automatically present the modern ECHO login experience.
+- **Protected Application Routes:** All dashboard tabs (`/`, `/risk`, `/architecture`, `/interview`, `/handover`, `/ask`, `/freshness`) require an active session. Unauthenticated requests automatically present the modern ECHO login experience.
 - **Session Persistence:** Authenticated sessions persist across page refreshes via `/api/auth/me`.
 - **Forgot Password Workflow:** Time-limited password reset tokens (`password_reset_tokens`) with email privacy (no account enumeration) and development-safe preview links when SMTP is not configured.
 - **Quick Demo Sign-in:** Instant 1-click test credentials for evaluation across all 4 system roles.
@@ -84,6 +91,9 @@ python test_github_integration.py
 
 # Run clustered architecture visualization tests
 python test_cluster_viz.py
+
+# Run knowledge freshness & drift detection tests
+python test_freshness_monitor.py
 ```
 
 ---
@@ -100,6 +110,7 @@ PURECODERS/
 │   │   ├── auth_service.py      # Password hashing, JWTs, sessions & password reset
 │   │   ├── risk_engine.py       # Deterministic knowledge-risk algorithm
 │   │   ├── cluster_graph_service.py # Clustered architecture dependency graph generator
+│   │   ├── freshness_service.py # Knowledge freshness tracking, parameter drift & conflict detection
 │   │   ├── interview_engine.py  # Grounded interview question generation & answers
 │   │   ├── github_service.py    # Native GitHub cloning, commits & AST analysis
 │   │   ├── git_scanner.py       # Local git repository scanner
@@ -109,7 +120,9 @@ PURECODERS/
 │   │   └── demo_seed.py         # Benchmark hackathon demo seed data
 │   ├── test_auth.py             # Auth unit and security tests (13 tests)
 │   ├── test_e2e_verification.py # End-to-end auth and regression tests (8 tests)
-│   └── test_github_integration.py # Native GitHub integration tests (14 tests)
+│   ├── test_github_integration.py # Native GitHub integration tests (14 tests)
+│   ├── test_cluster_viz.py      # Architecture cluster graph visualization tests (2 tests)
+│   └── test_freshness_monitor.py # Knowledge freshness & drift detection tests (5 tests)
 ├── frontend/
 │   ├── package.json             # Vite + React 19 dependencies
 │   ├── vite.config.js           # Vite dev server & proxy
@@ -126,7 +139,8 @@ PURECODERS/
 │           │   ├── AppShell.jsx        # Responsive layout container
 │           │   ├── Topbar.jsx          # Header with User Profile Menu & Role Switcher
 │           │   └── Sidebar.jsx         # Sidebar navigation with active user footer
-│           ├── risk/                   # Deterministic Risk Map
+│           ├── risk/                   # Deterministic Risk Map & cluster topology view
+│           ├── freshness/              # Knowledge Freshness Monitor & reviewer verification workflow
 │           ├── interview/              # Exit Interview component
 │           ├── handover/               # Handover Package component
 │           └── ask/                    # Ask Echo AI assistant
@@ -151,12 +165,22 @@ PURECODERS/
 
 ### Core Engine APIs
 - `GET /api/risk-map`: Deterministic risk scores per artifact, bus-factor violations, and planted gap detection.
+- `GET /api/graph/cluster-viz`: Domain-clustered architectural dependency graph with live risk halos and blast radii.
 - `GET /api/artifacts`: Full artifact catalog with knowledge graph edges.
 - `GET|POST /api/interview/questions`: Evidence-based questions generated for the leaver.
 - `GET|POST /api/interview/answers`: Submit and retrieve answers; automatically extracts decision logs.
 - `GET /api/handover`: Personalized successor package (onboarding path, landmines, open loops, who-to-ask).
 - `POST /api/ask`: Retrieval-first Q&A with citations and honesty fallback ("Unknown" + suggested contact).
 - `POST /api/reset`: Reset interview answers and decision logs for a clean demo run.
+
+### Knowledge Freshness Monitor APIs
+- `GET /api/freshness/overview`: Project freshness score, total monitored records, and count of records needing reverification.
+- `GET /api/freshness/alerts`: List active code-drift/contradiction alerts between documentation and commits.
+- `GET /api/freshness/records`: Full inventory of decisions, landmines, and docs with last-verified metadata and status.
+- `POST /api/freshness/scan`: On-demand scan parsing recent commits and detecting parameter drift or breaking refactors.
+- `POST /api/freshness/verify/{record_type}/{record_id}`: Re-verify record, update verification timestamp, and resolve alerts.
+- `POST /api/freshness/dismiss/{alert_id}`: Dismiss a specific freshness alert.
+
 
 ## 🔒 Security & Privacy
 

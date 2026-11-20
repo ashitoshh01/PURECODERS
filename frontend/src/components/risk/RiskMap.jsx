@@ -103,7 +103,7 @@ const METRIC_EXPLANATIONS = {
   }
 };
 
-export default function RiskMap({ onNavigateToInterview, activeProject, refreshKey, onNavigateToClusterViz }) {
+export default function RiskMap({ onNavigateToInterview, activeProject, refreshKey, onNavigateToClusterViz, onNavigateToFreshness }) {
   const [data, setData] = useState(null);
   const [graphData, setGraphData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -305,6 +305,17 @@ export default function RiskMap({ onNavigateToInterview, activeProject, refreshK
               <RefreshCw className={`w-3.5 h-3.5 ${rescanning ? 'animate-spin text-teal-600' : 'text-teal-700'}`} />
               <span>{rescanning ? 'Scanning Commits...' : 'Re-scan Commits'}</span>
             </button>
+
+            {onNavigateToFreshness && (
+              <button
+                onClick={onNavigateToFreshness}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-amber-800 bg-amber-50 border border-amber-200 rounded-lg hover:bg-amber-100 transition shadow-2xs cursor-pointer"
+                title="Continuous Knowledge Drift & Freshness Monitor"
+              >
+                <Sparkles className="w-3.5 h-3.5 text-amber-600" />
+                <span>Freshness Monitor</span>
+              </button>
+            )}
 
             <button
               onClick={() => setFormulaModalOpen(true)}
