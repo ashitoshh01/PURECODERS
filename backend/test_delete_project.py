@@ -19,9 +19,30 @@ class TestDeleteProject(unittest.TestCase):
     def setUp(self):
         reset_database(clear_credentials=False, clear_users=False)
         seed_demo_data()
+        from services.auth_service import seed_default_users
+        seed_default_users()
+        login_res = self.client.post("/api/auth/login", json={"email": "lead@echo.dev", "password": "EchoLead#2026"})
+        token = login_res.json()["token"]
+        self.auth_headers = {"Authorization": f"Bearer {token}"}
+
+    def test_unauthenticated_delete_returns_401(self):
+        """Security verification: unauthenticated delete attempts must be rejected with 401."""
+        unauth_client = TestClient(app)
+        res = unauth_client.delete("/api/projects/proj-demo")
+        self.assertEqual(res.status_code, 401)
+        self.assertIn("authentication required", res.json()["detail"].lower())
+
+    def test_unauthorized_role_delete_returns_403(self):
+        """Security verification: non-lead roles (e.g. successor) must be rejected with 403."""
+        succ_client = TestClient(app)
+        succ_login = succ_client.post("/api/auth/login", json={"email": "successor@echo.dev", "password": "EchoSuccessor#2026"})
+        succ_token = succ_login.json()["token"]
+        res = succ_client.delete("/api/projects/proj-demo", headers={"Authorization": f"Bearer {succ_token}"})
+        self.assertEqual(res.status_code, 403)
+        self.assertIn("access denied", res.json()["detail"].lower())
 
     def test_delete_nonexistent_project_returns_404(self):
-        res = self.client.delete("/api/projects/proj-does-not-exist")
+        res = self.client.delete("/api/projects/proj-does-not-exist", headers=self.auth_headers)
         self.assertEqual(res.status_code, 404)
         self.assertIn("not found", res.json()["detail"].lower())
 
@@ -39,7 +60,7 @@ class TestDeleteProject(unittest.TestCase):
         conn.close()
 
         # Delete proj-demo
-        res = self.client.delete("/api/projects/proj-demo")
+        res = self.client.delete("/api/projects/proj-demo", headers=self.auth_headers)
         self.assertEqual(res.status_code, 200)
         data = res.json()
         self.assertEqual(data["status"], "deleted")
@@ -72,11 +93,11 @@ class TestDeleteProject(unittest.TestCase):
         conn.close()
 
         # Ensure proj-demo is active
-        self.client.post("/api/projects/select", json={"project_id": "proj-demo"})
+        self.client.post("/api/projects/select", json={"project_id": "proj-demo"}, headers=self.auth_headers)
         self.assertEqual(get_active_project()["id"], "proj-demo")
 
         # Delete active project proj-demo
-        res = self.client.delete("/api/projects/proj-demo")
+        res = self.client.delete("/api/projects/proj-demo", headers=self.auth_headers)
         self.assertEqual(res.status_code, 200)
 
         # Remaining project proj-alpha should now be automatically active
@@ -86,14 +107,14 @@ class TestDeleteProject(unittest.TestCase):
 
     def test_delete_last_project_returns_none_active(self):
         # Only proj-demo exists initially
-        res = self.client.delete("/api/projects/proj-demo")
+        res = self.client.delete("/api/projects/proj-demo", headers=self.auth_headers)
         self.assertEqual(res.status_code, 200)
 
         # No active project left
         self.assertIsNone(get_active_project())
         
         # list projects returns empty list
-        p_res = self.client.get("/api/projects")
+        p_res = self.client.get("/api/projects", headers=self.auth_headers)
         self.assertEqual(p_res.status_code, 200)
         self.assertEqual(p_res.json()["projects"], [])
 

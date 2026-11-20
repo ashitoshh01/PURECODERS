@@ -13,10 +13,23 @@ from main import app
 class TestClusterVizEndpoint(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
+        from database import init_db
+        from services.auth_service import seed_default_users
+        init_db()
+        seed_default_users()
         cls.client = TestClient(app)
+        login_res = cls.client.post("/api/auth/login", json={"email": "lead@echo.dev", "password": "EchoLead#2026"})
+        token = login_res.json()["token"]
+        cls.auth_headers = {"Authorization": f"Bearer {token}"}
+
+    def test_unauthenticated_cluster_viz_rejected_401(self):
+        """Security test: unauthenticated access to cluster visualization is blocked with 401."""
+        unauth_client = TestClient(app)
+        res = unauth_client.get("/api/graph/cluster-viz?dataset=carddemo")
+        self.assertEqual(res.status_code, 401)
 
     def test_carddemo_dataset(self):
-        res = self.client.get("/api/graph/cluster-viz?dataset=carddemo")
+        res = self.client.get("/api/graph/cluster-viz?dataset=carddemo", headers=self.auth_headers)
         self.assertEqual(res.status_code, 200)
         data = res.json()
 
@@ -69,7 +82,7 @@ class TestClusterVizEndpoint(unittest.TestCase):
         self.assertGreater(summary["data_store_count"], 0)
 
     def test_workspace_dataset(self):
-        res = self.client.get("/api/graph/cluster-viz?dataset=workspace")
+        res = self.client.get("/api/graph/cluster-viz?dataset=workspace", headers=self.auth_headers)
         self.assertEqual(res.status_code, 200)
         data = res.json()
         self.assertIn("nodes", data)

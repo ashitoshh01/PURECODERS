@@ -20,10 +20,29 @@ from database import get_db
 # ----------------------------------------------------------------------------
 # CONFIGURATION
 # ----------------------------------------------------------------------------
-JWT_SECRET = os.getenv("JWT_SECRET", "echo-knowledge-risk-secret-key-prod-2026-hackathon")
+DEFAULT_DEV_SECRET = "echo-knowledge-risk-secret-key-prod-2026-hackathon"
+JWT_SECRET = os.getenv("JWT_SECRET", DEFAULT_DEV_SECRET)
 JWT_ALGORITHM = "HS256"
 JWT_EXPIRES_DAYS = int(os.getenv("JWT_EXPIRES_DAYS", "7"))
 JWT_REMEMBER_DAYS = int(os.getenv("JWT_REMEMBER_DAYS", "30"))
+
+def validate_security_configuration():
+    """Validates critical security configuration at runtime."""
+    env = os.getenv("ENV", "").lower()
+    railway = os.getenv("RAILWAY_ENVIRONMENT")
+    is_prod = env == "production" or bool(railway)
+    if is_prod and (not JWT_SECRET or JWT_SECRET == DEFAULT_DEV_SECRET):
+        if os.getenv("STRICT_SECURITY", "").lower() in ("true", "1", "yes"):
+            raise RuntimeError(
+                "CRITICAL SECURITY CONFIGURATION ERROR: JWT_SECRET must be configured with a secure custom value in production."
+            )
+        else:
+            import logging
+            logging.getLogger("echo.security").critical(
+                "SECURITY WARNING: Default development JWT_SECRET is currently in use in production! Set a custom JWT_SECRET."
+            )
+
+validate_security_configuration()
 
 # Valid role identifiers in ECHO
 VALID_ROLES = {

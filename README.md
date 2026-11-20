@@ -184,8 +184,13 @@ PURECODERS/
 
 ## 🔒 Security & Privacy
 
-- **No Secrets in Version Control:** `.env` and `*.db` are ignored by `.gitignore`.
+- **Server-Side Role-Based Access Control (RBAC):** All administrative and mutating endpoints (`/api/projects/scan-git`, `DELETE /api/projects/{id}`, `/api/repositories/github/ingest`, `/api/connectors/*`, `/api/reset`) enforce server-side role validation via `Depends(require_roles([...]))`. Unauthorized actions return `403 Forbidden`.
+- **Protected Workspace Endpoints:** All knowledge and dashboard APIs strictly enforce active authenticated session tokens (`Depends(get_current_user)`). Unauthenticated requests return `401 Unauthorized`.
+- **Secure Password Hashing:** Salted `bcrypt` hashing (12 rounds) prevents plaintext exposure or dictionary attacks.
+- **Dynamic Secure Session Cookies:** HTTP-only cookies automatically enable `secure=True` over HTTPS and production environments to prevent token leakage.
+- **Strict SSRF & URL Validation:** GitHub and connector URLs are strictly validated for scheme (`https`), hostname (`github.com`), port (`443`), and block internal/loopback IP spaces.
+- **No Secrets in Version Control:** `.env` and `*.db` are strictly ignored by `.gitignore`, and PAT/Bearer tokens are redacted from logs and API payloads.
 - **Honesty Guardrails:** The copilot strictly refuses to invent credentials, secrets, or undocumented data.
-- **Local-First SQLite:** Stores knowledge graphs, artifacts, and decisions locally without mandatory cloud vendor lock-in.
+- **Local-First SQLite with WAL Mode:** Stores knowledge graphs, artifacts, and decisions locally with Write-Ahead Logging (`PRAGMA journal_mode = WAL;`) for high concurrency and zero external vendor lock-in.
 
 

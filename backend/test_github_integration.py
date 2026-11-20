@@ -52,11 +52,21 @@ class TestGitHubIntegration(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         init_db()
+        from services.auth_service import seed_default_users
+        seed_default_users()
         cls.client = TestClient(app)
+        login_res = cls.client.post("/api/auth/login", json={"email": "lead@echo.dev", "password": "EchoLead#2026"})
+        token = login_res.json()["token"]
+        cls.client.headers.update({"Authorization": f"Bearer {token}"})
 
     def setUp(self):
         # Reset database before each test
         reset_database(clear_credentials=True)
+        from services.auth_service import seed_default_users
+        seed_default_users()
+        login_res = self.client.post("/api/auth/login", json={"email": "lead@echo.dev", "password": "EchoLead#2026"})
+        token = login_res.json()["token"]
+        self.client.headers.update({"Authorization": f"Bearer {token}"})
 
     # ------------------------------------------------------------------------
     # 1. SECURITY & SSRF PROTECTION TESTS

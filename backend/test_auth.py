@@ -253,5 +253,39 @@ class TestAuthentication(unittest.TestCase):
             headers={"Authorization": f"Bearer {token}"}
         )
 
+    def test_14_unauthenticated_api_endpoints_blocked(self):
+        """Security test: protected business endpoints return 401 when no session exists."""
+        self.client.cookies.clear()
+        
+        # Test protected endpoints return 401
+        self.assertEqual(self.client.get("/api/projects").status_code, 401)
+        self.assertEqual(self.client.get("/api/risk-map").status_code, 401)
+        self.assertEqual(self.client.get("/api/handover").status_code, 401)
+        self.assertEqual(self.client.post("/api/reset").status_code, 401)
+        self.assertEqual(self.client.delete("/api/projects/proj-demo").status_code, 401)
+
+    def test_15_role_permission_guards_enforced(self):
+        """Security test: role-based access control blocks unauthorized operations with 403."""
+        # Login as incoming contributor (successor)
+        login_res = self.client.post("/api/auth/login", json={
+            "email": "successor@echo.dev",
+            "password": "EchoSuccessor#2026"
+        })
+        token = login_res.json()["token"]
+        headers = {"Authorization": f"Bearer {token}"}
+
+        # Successor can read risk map & handover
+        self.assertEqual(self.client.get("/api/risk-map", headers=headers).status_code, 200)
+        self.assertEqual(self.client.get("/api/handover", headers=headers).status_code, 200)
+
+        # Successor CANNOT delete projects (lead only -> 403)
+        self.assertEqual(self.client.delete("/api/projects/proj-demo", headers=headers).status_code, 403)
+
+        # Successor CANNOT reset database (lead only -> 403)
+        self.assertEqual(self.client.post("/api/reset", headers=headers).status_code, 403)
+
+        # Successor CANNOT approve reviewer items (reviewer/lead only -> 403)
+        self.assertEqual(self.client.post("/api/handover/approve", json={"approved_by": "Test"}, headers=headers).status_code, 403)
+
 if __name__ == "__main__":
     unittest.main()

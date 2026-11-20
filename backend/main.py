@@ -265,11 +265,20 @@ def require_roles(allowed_roles: List[str]):
         return user
     return role_checker
 
+def is_request_secure(request: Request) -> bool:
+    """Checks whether the request is transmitted over HTTPS or running in production."""
+    scheme = request.url.scheme.lower()
+    proto = request.headers.get("x-forwarded-proto", "").lower()
+    env = os.getenv("ENV", "").lower()
+    railway = os.getenv("RAILWAY_ENVIRONMENT")
+    forced = os.getenv("COOKIE_SECURE", "").lower() in ("true", "1")
+    return scheme == "https" or proto == "https" or env == "production" or bool(railway) or forced
+
 # ----------------------------------------------------------------------------
 # AUTHENTICATION ENDPOINTS
 # ----------------------------------------------------------------------------
 @app.post("/api/auth/register", status_code=status.HTTP_201_CREATED)
-def register_endpoint(payload: UserRegisterIn, response: Response):
+def register_endpoint(payload: UserRegisterIn, response: Response, request: Request):
     """
     Registers a new user account with hashed password and role assignment.
     Creates active session and sets secure HTTP-only cookie.
@@ -293,7 +302,7 @@ def register_endpoint(payload: UserRegisterIn, response: Response):
             httponly=True,
             max_age=auth_service.JWT_EXPIRES_DAYS * 86400,
             samesite="lax",
-            secure=False
+            secure=is_request_secure(request)
         )
 
         return {
@@ -312,7 +321,7 @@ def register_endpoint(payload: UserRegisterIn, response: Response):
         raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, f"Registration failed: {str(e)}")
 
 @app.post("/api/auth/login")
-def login_endpoint(payload: UserLoginIn, response: Response):
+def login_endpoint(payload: UserLoginIn, response: Response, request: Request):
     """
     Authenticates a user with email and password using bcrypt.
     Creates a new authenticated session in SQLite and returns JWT + user profile.
@@ -348,7 +357,7 @@ def login_endpoint(payload: UserLoginIn, response: Response):
         httponly=True,
         max_age=days * 86400,
         samesite="lax",
-        secure=False
+        secure=is_request_secure(request)
     )
 
     clean_user = {
@@ -373,6 +382,7 @@ def login_endpoint(payload: UserLoginIn, response: Response):
 @app.post("/api/auth/logout")
 def logout_endpoint(
     response: Response,
+    request: Request,
     authorization: Optional[str] = Header(None),
     echo_token: Optional[str] = Cookie(None)
 ):
@@ -388,7 +398,12 @@ def logout_endpoint(
     if token:
         auth_service.delete_session(token)
 
-    response.delete_cookie(key="echo_token")
+    response.delete_cookie(
+        key="echo_token",
+        httponly=True,
+        samesite="lax",
+        secure=is_request_secure(request)
+    )
     return {"status": "success", "message": "Successfully logged out"}
 
 @app.get("/api/auth/me")
@@ -492,14 +507,14 @@ def health():
     }
 
 @app.get("/api/projects")
-def list_projects():
+def list_projects(user: Dict[str, Any] = Depends(get_current_user)):
     conn = get_db()
     rows = conn.execute("SELECT * FROM projects ORDER BY created_at ASC").fetchall()
     conn.close()
     return {"projects": [dict(r) for r in rows]}
 
 @app.post("/api/projects/select")
-def select_project(payload: ProjectSelectIn):
+def select_project(payload: ProjectSelectIn, user: Dict[str, Any] = Depends(get_current_user)):
     conn = get_db()
     with conn:
         conn.execute("UPDATE projects SET is_active = 0")
@@ -511,7 +526,7 @@ def select_project(payload: ProjectSelectIn):
     return {"status": "selected", "active_project": get_active_project()}
 
 @app.post("/api/projects/scan-git")
-def scan_git(payload: GitScanIn):
+def scan_git(payload: GitScanIn, user: Dict[str, Any] = Depends(require_roles(["project_lead"]))):
     p_id = payload.project_id or "proj-live"
     try:
         res = scan_git_repository(
@@ -525,7 +540,7 @@ def scan_git(payload: GitScanIn):
         raise HTTPException(400, f"Git scan failed: {str(e)}")
 
 @app.delete("/api/projects/{project_id}")
-def delete_project(project_id: str):
+def delete_project(project_id: str, user: Dict[str, Any] = Depends(require_roles(["project_lead"]))):
     """
     Permanently deletes a specific project and all its associated data:
     repositories, commits, team members, artifacts, knowledge gaps,
@@ -583,15 +598,9 @@ def delete_project(project_id: str):
         "active_project": get_active_project()
     }
 
-@app.get("/api/projects/{project_id}/repositories")
-def get_project_repositories(project_id: str):
-    conn = get_db()
-    rows = conn.execute("SELECT * FROM repositories WHERE project_id = ?", (project_id,)).fetchall()
-    conn.close()
-    return {"repositories": [dict(r) for r in rows]}
 
 @app.get("/api/projects/{project_id}/commits")
-def get_project_commits(project_id: str):
+def get_project_commits(project_id: str, user: Dict[str, Any] = Depends(get_current_user)):
     conn = get_db()
     rows = conn.execute(
         "SELECT * FROM commits WHERE project_id = ? ORDER BY committed_at DESC LIMIT 50",
@@ -601,7 +610,7 @@ def get_project_commits(project_id: str):
     return {"commits": [dict(r) for r in rows]}
 
 @app.get("/api/team-members")
-def get_team_members(project_id: Optional[str] = None):
+def get_team_members(project_id: Optional[str] = None, user: Dict[str, Any] = Depends(get_current_user)):
     p_id = project_id or (get_active_project() or {}).get("id")
     if not p_id:
         return {"team_members": []}
@@ -614,12 +623,12 @@ def get_team_members(project_id: Optional[str] = None):
 # GITHUB INTEGRATION: AUTHENTICATION
 # ----------------------------------------------------------------------------
 @app.get("/api/github/status")
-def get_github_status():
+def get_github_status(user: Dict[str, Any] = Depends(get_current_user)):
     """Returns GitHub authentication status, connected user, scopes, and rate limits."""
     return gh_svc.get_github_connection_status()
 
 @app.post("/api/github/connect")
-def connect_github(payload: GitHubConnectIn):
+def connect_github(payload: GitHubConnectIn, user: Dict[str, Any] = Depends(require_roles(["project_lead"]))):
     """
     Validates and stores GitHub credentials.
     Access tokens are never logged and never returned in API responses.
@@ -635,7 +644,7 @@ def connect_github(payload: GitHubConnectIn):
         raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, f"GitHub authentication failed: {gh_svc.redact_secrets(str(e))}")
 
 @app.post("/api/github/disconnect")
-def disconnect_github_endpoint():
+def disconnect_github_endpoint(user: Dict[str, Any] = Depends(require_roles(["project_lead"]))):
     """Disconnects GitHub integration and clears stored credentials."""
     return gh_svc.disconnect_github()
 
@@ -648,7 +657,8 @@ def get_github_repositories(
     visibility: Optional[str] = Query(None, description="Repository visibility: 'all', 'public', or 'private'"),
     sort: str = Query("updated", description="Sort order: 'updated', 'pushed', or 'full_name'"),
     page: int = Query(1, ge=1, description="Page number"),
-    per_page: int = Query(30, ge=1, le=100, description="Items per page")
+    per_page: int = Query(30, ge=1, le=100, description="Items per page"),
+    user: Dict[str, Any] = Depends(get_current_user)
 ):
     """Lists accessible GitHub repositories for the authenticated user."""
     try:
@@ -665,7 +675,7 @@ def get_github_repositories(
         raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, f"Failed to list repositories: {gh_svc.redact_secrets(str(e))}")
 
 @app.get("/api/github/repositories/{owner}/{repo}")
-def get_github_repo_metadata(owner: str, repo: str):
+def get_github_repo_metadata(owner: str, repo: str, user: Dict[str, Any] = Depends(get_current_user)):
     """Fetches metadata, default branch, permissions, and size for a GitHub repository."""
     try:
         return gh_svc.get_repository_metadata(owner, repo)
@@ -679,7 +689,7 @@ def get_github_repo_metadata(owner: str, repo: str):
         raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, gh_svc.redact_secrets(str(e)))
 
 @app.get("/api/github/repositories/{owner}/{repo}/branches")
-def get_github_repo_branches(owner: str, repo: str):
+def get_github_repo_branches(owner: str, repo: str, user: Dict[str, Any] = Depends(get_current_user)):
     """Lists available branches for a GitHub repository."""
     try:
         branches = gh_svc.list_repository_branches(owner, repo)
@@ -699,7 +709,8 @@ def get_github_repo_branches(owner: str, repo: str):
 @app.post("/api/repositories/github/ingest", status_code=status.HTTP_202_ACCEPTED)
 def ingest_github_repository(
     payload: GitHubIngestIn,
-    background_tasks: BackgroundTasks
+    background_tasks: BackgroundTasks,
+    user: Dict[str, Any] = Depends(require_roles(["project_lead"]))
 ):
     """
     Ingests a GitHub repository directly into Echo:
@@ -803,7 +814,7 @@ def ingest_github_repository(
 
 @app.get("/api/repositories/github/ingest/{job_id}/status")
 @app.get("/api/repositories/ingest/{job_id}/status")
-def get_ingestion_job_status(job_id: str):
+def get_ingestion_job_status(job_id: str, user: Dict[str, Any] = Depends(get_current_user)):
     """Returns current status, progress percentage, step, and results of an ingestion job."""
     job = gh_svc.get_job_status(job_id)
     if not job:
@@ -814,12 +825,12 @@ def get_ingestion_job_status(job_id: str):
 # RISK MAP & ARTIFACTS
 # ----------------------------------------------------------------------------
 @app.get("/api/risk-map")
-def get_risk_map(project_id: Optional[str] = None, repo_id: Optional[str] = None):
+def get_risk_map(project_id: Optional[str] = None, repo_id: Optional[str] = None, user: Dict[str, Any] = Depends(get_current_user)):
     p_id = project_id or (get_active_project() or {}).get("id")
     return calculate_project_risk(p_id, repo_id=repo_id)
 
 @app.get("/api/artifacts")
-def get_artifacts(project_id: Optional[str] = None):
+def get_artifacts(project_id: Optional[str] = None, user: Dict[str, Any] = Depends(get_current_user)):
     p_id = project_id or (get_active_project() or {}).get("id")
     if not p_id:
         return {"artifacts": [], "edges": []}
@@ -835,7 +846,8 @@ def get_artifacts(project_id: Optional[str] = None):
 @app.get("/api/graph/cluster-viz")
 def get_cluster_viz(
     project_id: Optional[str] = None,
-    dataset: Optional[str] = "auto"
+    dataset: Optional[str] = "auto",
+    user: Dict[str, Any] = Depends(get_current_user)
 ):
     """
     Returns domain-clustered architectural dependency graph data with calculated risk weights,
@@ -846,7 +858,7 @@ def get_cluster_viz(
     return get_cluster_graph_data(project_id=p_id, dataset=dataset or "auto")
 
 @app.get("/api/artifacts/{artifact_id}")
-def get_artifact_details(artifact_id: str, project_id: Optional[str] = None):
+def get_artifact_details(artifact_id: str, project_id: Optional[str] = None, user: Dict[str, Any] = Depends(get_current_user)):
     p_id = project_id or (get_active_project() or {}).get("id")
     if not p_id:
         raise HTTPException(404, f"Artifact {artifact_id} not found")
@@ -879,7 +891,7 @@ def get_artifact_details(artifact_id: str, project_id: Optional[str] = None):
 # EXIT INTERVIEW
 # ----------------------------------------------------------------------------
 @app.get("/api/interview/questions")
-def get_interview_questions(limit: int = 6, project_id: Optional[str] = None):
+def get_interview_questions(limit: int = 6, project_id: Optional[str] = None, user: Dict[str, Any] = Depends(get_current_user)):
     p_id = project_id or (get_active_project() or {}).get("id")
     if not p_id:
         return {
@@ -905,7 +917,7 @@ def get_interview_questions(limit: int = 6, project_id: Optional[str] = None):
     }
 
 @app.post("/api/interview/questions/generate")
-def generate_questions_endpoint(limit: int = 6, project_id: Optional[str] = None):
+def generate_questions_endpoint(limit: int = 6, project_id: Optional[str] = None, user: Dict[str, Any] = Depends(require_roles(["project_lead", "departing_contributor"]))):
     p_id = project_id or (get_active_project() or {}).get("id")
     if not p_id:
         return {
@@ -922,7 +934,7 @@ def generate_questions_endpoint(limit: int = 6, project_id: Optional[str] = None
     return get_interview_questions(limit=limit, project_id=p_id)
 
 @app.post("/api/interview/answers")
-def submit_interview_answer(payload: AnswerIn):
+def submit_interview_answer(payload: AnswerIn, user: Dict[str, Any] = Depends(require_roles(["project_lead", "departing_contributor"]))):
     conn = get_db()
     q_row = conn.execute("SELECT * FROM interview_questions WHERE id = ?", (payload.question_id,)).fetchone()
     if not q_row:
@@ -983,7 +995,7 @@ def submit_interview_answer(payload: AnswerIn):
     }
 
 @app.get("/api/interview/answers")
-def get_interview_answers(project_id: Optional[str] = None):
+def get_interview_answers(project_id: Optional[str] = None, user: Dict[str, Any] = Depends(get_current_user)):
     p_id = project_id or (get_active_project() or {}).get("id")
     if not p_id:
         return {"answers": [], "total": 0}
@@ -999,7 +1011,7 @@ def get_interview_answers(project_id: Optional[str] = None):
     return {"answers": [dict(r) for r in rows], "total": len(rows)}
 
 @app.delete("/api/interview/answers/{question_id}")
-def clear_interview_answer(question_id: str):
+def clear_interview_answer(question_id: str, user: Dict[str, Any] = Depends(require_roles(["project_lead", "departing_contributor"]))):
     """
     Clears / deletes an interview answer for a question and removes any
     associated decisions and landmines extracted from this answer.
@@ -1022,7 +1034,7 @@ def clear_interview_answer(question_id: str):
 # VOICE INTERVIEWS & REVIEWER PORTAL
 # ----------------------------------------------------------------------------
 @app.post("/api/interview/transcribe")
-def transcribe_and_extract_voice_answer(payload: VoiceTranscribeIn):
+def transcribe_and_extract_voice_answer(payload: VoiceTranscribeIn, user: Dict[str, Any] = Depends(require_roles(["project_lead", "departing_contributor"]))):
     """
     Receives voice interview transcript, persists the answer linked to question,
     and runs NLP structured extraction to capture Decisions, Landmines, and Open Loops.
@@ -1079,24 +1091,24 @@ def transcribe_and_extract_voice_answer(payload: VoiceTranscribeIn):
     }
 
 @app.get("/api/review/items")
-def get_reviewer_items(project_id: Optional[str] = None):
+def get_reviewer_items(project_id: Optional[str] = None, user: Dict[str, Any] = Depends(get_current_user)):
     p_id = project_id or (get_active_project() or {}).get("id")
     if not p_id:
         return {"decisions": [], "landmines": [], "open_loops": [], "pending_count": 0}
     return voice_service.get_review_items(p_id)
 
 @app.post("/api/review/items/{item_type}/{item_id}/approve")
-def approve_reviewer_item(item_type: str, item_id: str, payload: Optional[ReviewItemUpdateIn] = None):
+def approve_reviewer_item(item_type: str, item_id: str, payload: Optional[ReviewItemUpdateIn] = None, user: Dict[str, Any] = Depends(require_roles(["project_lead", "reviewer"]))):
     reviewer = (payload.reviewer_name if payload else None) or "Engineering Reviewer"
     return voice_service.update_review_status(item_type, item_id, "approved", reviewer)
 
 @app.post("/api/review/items/{item_type}/{item_id}/reject")
-def reject_reviewer_item(item_type: str, item_id: str, payload: Optional[ReviewItemUpdateIn] = None):
+def reject_reviewer_item(item_type: str, item_id: str, payload: Optional[ReviewItemUpdateIn] = None, user: Dict[str, Any] = Depends(require_roles(["project_lead", "reviewer"]))):
     reviewer = (payload.reviewer_name if payload else None) or "Engineering Reviewer"
     return voice_service.update_review_status(item_type, item_id, "rejected", reviewer)
 
 @app.put("/api/review/items/{item_type}/{item_id}")
-def update_reviewer_item(item_type: str, item_id: str, payload: ReviewItemUpdateIn):
+def update_reviewer_item(item_type: str, item_id: str, payload: ReviewItemUpdateIn, user: Dict[str, Any] = Depends(require_roles(["project_lead", "reviewer"]))):
     return voice_service.update_review_status(
         item_type=item_type,
         item_id=item_id,
@@ -1109,7 +1121,7 @@ def update_reviewer_item(item_type: str, item_id: str, payload: ReviewItemUpdate
 # HANDOVER PACKAGE
 # ----------------------------------------------------------------------------
 @app.get("/api/handover")
-def get_handover_package(project_id: Optional[str] = None):
+def get_handover_package(project_id: Optional[str] = None, user: Dict[str, Any] = Depends(get_current_user)):
     p_id = project_id or (get_active_project() or {}).get("id")
     empty_package = {
         "package_id": None,
@@ -1223,7 +1235,7 @@ def get_handover_package(project_id: Optional[str] = None):
     }
 
 @app.post("/api/handover/approve")
-def approve_handover(payload: ApproveHandoverIn):
+def approve_handover(payload: ApproveHandoverIn, user: Dict[str, Any] = Depends(require_roles(["project_lead", "reviewer"]))):
     p_id = payload.project_id or (get_active_project() or {}).get("id") or DEMO_PROJECT_ID
     conn = get_db()
     now = datetime.now(timezone.utc).isoformat()
@@ -1237,7 +1249,7 @@ def approve_handover(payload: ApproveHandoverIn):
     return {"status": "approved", "approved_at": now, "approved_by": payload.approved_by}
 
 @app.post("/api/handover/task/{task_id}/toggle")
-def toggle_onboarding_task(task_id: int):
+def toggle_onboarding_task(task_id: int, user: Dict[str, Any] = Depends(get_current_user)):
     conn = get_db()
     with conn:
         row = conn.execute("SELECT is_completed FROM onboarding_tasks WHERE id = ?", (task_id,)).fetchone()
@@ -1253,11 +1265,11 @@ def toggle_onboarding_task(task_id: int):
 # ASK ECHO (AI ASSISTANT & RETRIEVAL)
 # ----------------------------------------------------------------------------
 @app.get("/api/ai/status")
-def get_ai_status_endpoint():
+def get_ai_status_endpoint(user: Dict[str, Any] = Depends(get_current_user)):
     return get_asi_status()
 
 @app.post("/api/ai/config")
-def update_ai_config_endpoint(payload: AiConfigIn):
+def update_ai_config_endpoint(payload: AiConfigIn, user: Dict[str, Any] = Depends(require_roles(["project_lead"]))):
     success = update_asi_env(payload.api_key, payload.model)
     if not success:
         raise HTTPException(500, "Failed to update configuration in .env")
@@ -1288,7 +1300,7 @@ def _format_chat_row(r):
     }
 
 @app.get("/api/conversations")
-def get_conversations(project_id: Optional[str] = None):
+def get_conversations(project_id: Optional[str] = None, user: Dict[str, Any] = Depends(get_current_user)):
     p_id = project_id or (get_active_project() or {}).get("id")
     if not p_id:
         return {"conversations": [], "messages": []}
@@ -1334,7 +1346,7 @@ def get_conversations(project_id: Optional[str] = None):
     return {"conversations": conversations, "messages": messages}
 
 @app.get("/api/conversations/{conv_id}")
-def get_single_conversation(conv_id: str):
+def get_single_conversation(conv_id: str, user: Dict[str, Any] = Depends(get_current_user)):
     conn = get_db()
     conv = conn.execute("SELECT * FROM conversations WHERE id = ?", (conv_id,)).fetchone()
     if not conv:
@@ -1354,7 +1366,7 @@ def get_single_conversation(conv_id: str):
     }
 
 @app.delete("/api/conversations/{conv_id}")
-def delete_single_conversation(conv_id: str):
+def delete_single_conversation(conv_id: str, user: Dict[str, Any] = Depends(get_current_user)):
     conn = get_db()
     with conn:
         conn.execute("DELETE FROM chat_messages WHERE conversation_id = ?", (conv_id,))
@@ -1363,7 +1375,7 @@ def delete_single_conversation(conv_id: str):
     return {"status": "ok", "deleted_id": conv_id}
 
 @app.post("/api/ask")
-async def ask_echo_endpoint(payload: AskIn):
+async def ask_echo_endpoint(payload: AskIn, user: Dict[str, Any] = Depends(get_current_user)):
     p_id = payload.project_id or (get_active_project() or {}).get("id")
     if not p_id:
         raise HTTPException(400, "No active project. Please ingest a repository first.")
@@ -1460,7 +1472,7 @@ async def ask_echo_endpoint(payload: AskIn):
 # SLACK & JIRA LIVE CONNECTORS
 # ----------------------------------------------------------------------------
 @app.get("/api/connectors/slack/authorize")
-def slack_authorize(project_id: Optional[str] = None, redirect_uri: str = Query("http://localhost:8000/api/connectors/slack/callback")):
+def slack_authorize(project_id: Optional[str] = None, redirect_uri: str = Query("http://localhost:8000/api/connectors/slack/callback"), user: Dict[str, Any] = Depends(require_roles(["project_lead"]))):
     p_id = project_id or (get_active_project() or {}).get("id") or "proj-live"
     return {"url": slack_service.get_slack_auth_url(p_id, redirect_uri)}
 
@@ -1477,7 +1489,7 @@ def slack_callback(code: str, state: Optional[str] = None, redirect_uri: str = Q
     return JSONResponse(content={"status": "connected", "details": res})
 
 @app.post("/api/connectors/slack/connect-token")
-def connect_slack_token(payload: SlackTokenConnectIn):
+def connect_slack_token(payload: SlackTokenConnectIn, user: Dict[str, Any] = Depends(require_roles(["project_lead"]))):
     p_id = payload.project_id or (get_active_project() or {}).get("id") or "proj-live"
     return slack_service.save_slack_credentials(
         project_id=p_id,
@@ -1487,22 +1499,22 @@ def connect_slack_token(payload: SlackTokenConnectIn):
     )
 
 @app.get("/api/connectors/slack/channels")
-def get_slack_channels(project_id: Optional[str] = None):
+def get_slack_channels(project_id: Optional[str] = None, user: Dict[str, Any] = Depends(get_current_user)):
     p_id = project_id or (get_active_project() or {}).get("id")
     return {"channels": slack_service.list_slack_channels(p_id)}
 
 @app.post("/api/connectors/slack/sync")
-def sync_slack(payload: SlackSyncIn):
+def sync_slack(payload: SlackSyncIn, user: Dict[str, Any] = Depends(require_roles(["project_lead"]))):
     p_id = payload.project_id or (get_active_project() or {}).get("id") or "proj-live"
     return slack_service.sync_slack_workspace(p_id, payload.channel_ids)
 
 @app.post("/api/connectors/slack/disconnect")
-def disconnect_slack_endpoint(project_id: Optional[str] = None):
+def disconnect_slack_endpoint(project_id: Optional[str] = None, user: Dict[str, Any] = Depends(require_roles(["project_lead"]))):
     p_id = project_id or (get_active_project() or {}).get("id")
     return slack_service.disconnect_slack(p_id)
 
 @app.get("/api/connectors/jira/authorize")
-def jira_authorize(project_id: Optional[str] = None, redirect_uri: str = Query("http://localhost:8000/api/connectors/jira/callback")):
+def jira_authorize(project_id: Optional[str] = None, redirect_uri: str = Query("http://localhost:8000/api/connectors/jira/callback"), user: Dict[str, Any] = Depends(require_roles(["project_lead"]))):
     p_id = project_id or (get_active_project() or {}).get("id") or "proj-live"
     return {"url": jira_service.get_jira_auth_url(p_id, redirect_uri)}
 
@@ -1519,7 +1531,7 @@ def jira_callback(code: str, state: Optional[str] = None, redirect_uri: str = Qu
     return JSONResponse(content={"status": "connected", "details": res})
 
 @app.post("/api/connectors/jira/connect-token")
-def connect_jira_token(payload: JiraTokenConnectIn):
+def connect_jira_token(payload: JiraTokenConnectIn, user: Dict[str, Any] = Depends(require_roles(["project_lead"]))):
     p_id = payload.project_id or (get_active_project() or {}).get("id") or "proj-live"
     return jira_service.connect_jira_api_token(
         domain=payload.domain,
@@ -1529,12 +1541,12 @@ def connect_jira_token(payload: JiraTokenConnectIn):
     )
 
 @app.post("/api/connectors/jira/sync")
-def sync_jira(payload: JiraSyncIn):
+def sync_jira(payload: JiraSyncIn, user: Dict[str, Any] = Depends(require_roles(["project_lead"]))):
     p_id = payload.project_id or (get_active_project() or {}).get("id") or "proj-live"
     return jira_service.sync_jira_workspace(p_id, payload.jql)
 
 @app.post("/api/connectors/jira/disconnect")
-def disconnect_jira_endpoint(project_id: Optional[str] = None):
+def disconnect_jira_endpoint(project_id: Optional[str] = None, user: Dict[str, Any] = Depends(require_roles(["project_lead"]))):
     p_id = project_id or (get_active_project() or {}).get("id")
     return jira_service.disconnect_jira(p_id)
 
@@ -1542,7 +1554,7 @@ def disconnect_jira_endpoint(project_id: Optional[str] = None):
 # CONTINUOUS MONITORING & MULTI-REPO WORKSPACES
 # ----------------------------------------------------------------------------
 @app.get("/api/projects/{project_id}/repositories")
-def get_project_repositories(project_id: str):
+def get_project_repositories(project_id: str, user: Dict[str, Any] = Depends(get_current_user)):
     conn = get_db()
     rows = conn.execute("SELECT * FROM repositories WHERE project_id = ? ORDER BY last_synced_at DESC", (project_id,)).fetchall()
     conn.close()
@@ -1557,7 +1569,7 @@ async def github_push_webhook(project_id: str, request: Request):
     return monitor_service.process_github_push_webhook(project_id, payload)
 
 @app.post("/api/monitoring/rescan")
-def monitoring_rescan(payload: MonitoringRescanIn):
+def monitoring_rescan(payload: MonitoringRescanIn, user: Dict[str, Any] = Depends(require_roles(["project_lead"]))):
     p_id = payload.project_id or (get_active_project() or {}).get("id") or DEMO_PROJECT_ID
     alerts = monitor_service.detect_knowledge_drift(p_id)
     freshness_alerts = freshness_service.detect_freshness_drift(p_id)
@@ -1570,7 +1582,7 @@ def monitoring_rescan(payload: MonitoringRescanIn):
     }
 
 @app.get("/api/monitoring/drift-alerts")
-def get_monitoring_drift_alerts(project_id: Optional[str] = None, include_resolved: bool = False):
+def get_monitoring_drift_alerts(project_id: Optional[str] = None, include_resolved: bool = False, user: Dict[str, Any] = Depends(get_current_user)):
     p_id = project_id or (get_active_project() or {}).get("id")
     if not p_id:
         return {"alerts": [], "count": 0}
@@ -1578,7 +1590,7 @@ def get_monitoring_drift_alerts(project_id: Optional[str] = None, include_resolv
     return {"alerts": alerts, "count": len(alerts)}
 
 @app.post("/api/monitoring/drift-alerts/{alert_id}/resolve")
-def resolve_monitoring_drift_alert(alert_id: str):
+def resolve_monitoring_drift_alert(alert_id: str, user: Dict[str, Any] = Depends(require_roles(["project_lead", "reviewer"]))):
     monitor_service.resolve_drift_alert(alert_id)
     return {"status": "resolved", "alert_id": alert_id}
 
@@ -1586,24 +1598,24 @@ def resolve_monitoring_drift_alert(alert_id: str):
 # KNOWLEDGE FRESHNESS MONITOR APIS
 # ----------------------------------------------------------------------------
 @app.get("/api/freshness/overview")
-def get_freshness_overview_endpoint(project_id: Optional[str] = None):
+def get_freshness_overview_endpoint(project_id: Optional[str] = None, user: Dict[str, Any] = Depends(get_current_user)):
     p_id = project_id or (get_active_project() or {}).get("id") or DEMO_PROJECT_ID
     return freshness_service.get_freshness_overview(p_id)
 
 @app.get("/api/freshness/alerts")
-def get_freshness_alerts_endpoint(project_id: Optional[str] = None, include_resolved: bool = False):
+def get_freshness_alerts_endpoint(project_id: Optional[str] = None, include_resolved: bool = False, user: Dict[str, Any] = Depends(get_current_user)):
     p_id = project_id or (get_active_project() or {}).get("id") or DEMO_PROJECT_ID
     alerts = freshness_service.get_freshness_alerts(p_id, include_resolved=include_resolved)
     return {"alerts": alerts, "count": len(alerts)}
 
 @app.get("/api/freshness/records")
-def get_freshness_records_endpoint(project_id: Optional[str] = None):
+def get_freshness_records_endpoint(project_id: Optional[str] = None, user: Dict[str, Any] = Depends(get_current_user)):
     p_id = project_id or (get_active_project() or {}).get("id") or DEMO_PROJECT_ID
     records = freshness_service.get_freshness_records(p_id)
     return {"records": records, "count": len(records)}
 
 @app.post("/api/freshness/scan")
-def trigger_freshness_scan_endpoint(payload: Optional[FreshnessScanIn] = None):
+def trigger_freshness_scan_endpoint(payload: Optional[FreshnessScanIn] = None, user: Dict[str, Any] = Depends(get_current_user)):
     p_id = (payload.project_id if payload else None) or (get_active_project() or {}).get("id") or DEMO_PROJECT_ID
     new_alerts = freshness_service.detect_freshness_drift(p_id)
     overview = freshness_service.get_freshness_overview(p_id)
@@ -1616,13 +1628,13 @@ def trigger_freshness_scan_endpoint(payload: Optional[FreshnessScanIn] = None):
     }
 
 @app.post("/api/freshness/verify/{record_type}/{record_id}")
-def verify_freshness_record_endpoint(record_type: str, record_id: str, payload: Optional[FreshnessVerifyIn] = None):
+def verify_freshness_record_endpoint(record_type: str, record_id: str, payload: Optional[FreshnessVerifyIn] = None, user: Dict[str, Any] = Depends(require_roles(["project_lead", "reviewer"]))):
     verifier = (payload.verifier_name if payload else None) or "Lead Reviewer"
     result = freshness_service.track_verification(record_type, record_id, verifier)
     return result
 
 @app.post("/api/freshness/dismiss/{alert_id}")
-def dismiss_freshness_alert_endpoint(alert_id: str, payload: Optional[FreshnessDismissIn] = None):
+def dismiss_freshness_alert_endpoint(alert_id: str, payload: Optional[FreshnessDismissIn] = None, user: Dict[str, Any] = Depends(require_roles(["project_lead", "reviewer"]))):
     dismissed_by = (payload.dismissed_by if payload else None) or "Lead Reviewer"
     freshness_service.dismiss_freshness_alert(alert_id, dismissed_by)
     return {"status": "dismissed", "alert_id": alert_id}
@@ -1631,15 +1643,15 @@ def dismiss_freshness_alert_endpoint(alert_id: str, payload: Optional[FreshnessD
 # CONNECTORS & RESET
 # ----------------------------------------------------------------------------
 @app.get("/api/connectors")
-def get_connectors():
+def get_connectors(user: Dict[str, Any] = Depends(get_current_user)):
     return {"connectors": get_connectors_status()}
 
 @app.post("/api/reset")
-def reset_database_endpoint():
+def reset_database_endpoint(user: Dict[str, Any] = Depends(require_roles(["project_lead"]))):
     return reset_database()
 
 @app.post("/api/demo/seed")
-def seed_demo_endpoint():
+def seed_demo_endpoint(user: Dict[str, Any] = Depends(require_roles(["project_lead"]))):
     seed_demo_data(reset=False)
     sync_project_questions(DEMO_PROJECT_ID)
     return {"status": "demo benchmark state seeded", "project_id": DEMO_PROJECT_ID}

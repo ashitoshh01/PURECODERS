@@ -81,27 +81,43 @@ def update_asi_env(api_key: str, model: Optional[str] = None) -> bool:
     root_env = Path(__file__).resolve().parent.parent.parent / ".env"
     backend_env = Path(__file__).resolve().parent.parent / ".env"
 
-    content = f"""# ============================================================================
-# ECHO KNOWLEDGE-RISK ENGINE — ENVIRONMENT CONFIGURATION
-# ============================================================================
-#
-# ASI:One (ASI1) API Key
-# Generated or retrieved from: https://asi1.ai/dashboard/api-keys
-#
-ASI1_API_KEY={cleaned_key}
+    def update_env_file(path: Path):
+        lines = []
+        if path.exists():
+            try:
+                lines = path.read_text(encoding="utf-8").splitlines()
+            except Exception:
+                lines = []
 
-# Model to use: 'asi1' (recommended default), 'asi1-mini', or 'asi1-ultra'
-ASI1_MODEL={chosen_model}
+        keys_to_set = {
+            "ASI1_API_KEY": cleaned_key,
+            "ASI1_MODEL": chosen_model,
+            "ASI1_BASE_URL": "https://api.asi1.ai/v1",
+        }
+        updated_keys = set()
+        new_lines = []
+        for line in lines:
+            trimmed = line.strip()
+            if not trimmed.startswith("#") and "=" in trimmed:
+                k = trimmed.split("=", 1)[0].strip()
+                if k in keys_to_set:
+                    new_lines.append(f"{k}={keys_to_set[k]}")
+                    updated_keys.add(k)
+                    continue
+            new_lines.append(line)
 
-# ASI:One API Base URL
-ASI1_BASE_URL=https://api.asi1.ai/v1
-"""
+        for k, v in keys_to_set.items():
+            if k not in updated_keys:
+                new_lines.append(f"{k}={v}")
+
+        path.write_text("\n".join(new_lines) + "\n", encoding="utf-8")
+
     try:
         if root_env.parent.exists():
-            root_env.write_text(content)
+            update_env_file(root_env)
         if backend_env.parent.exists() and not backend_env.is_symlink():
             try:
-                backend_env.write_text(content)
+                update_env_file(backend_env)
             except Exception:
                 pass
         load_project_env()
