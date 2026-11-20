@@ -366,6 +366,26 @@ def init_db():
             FOREIGN KEY(project_id) REFERENCES projects(id) ON DELETE CASCADE,
             FOREIGN KEY(artifact_id) REFERENCES artifacts(id) ON DELETE CASCADE
         );
+
+        CREATE TABLE IF NOT EXISTS knowledge_freshness_alerts (
+            id TEXT PRIMARY KEY,
+            project_id TEXT NOT NULL,
+            record_type TEXT NOT NULL, -- 'decision', 'landmine', 'doc'
+            record_id TEXT NOT NULL,
+            artifact_id TEXT,
+            title TEXT NOT NULL,
+            documented_statement TEXT NOT NULL,
+            contradicting_commit_id TEXT,
+            contradicting_message TEXT,
+            contradicting_author TEXT,
+            mismatch_details TEXT,
+            severity TEXT NOT NULL DEFAULT 'warning', -- 'warning', 'critical'
+            is_resolved INTEGER DEFAULT 0,
+            resolved_at TEXT,
+            resolved_by TEXT,
+            created_at TEXT NOT NULL,
+            FOREIGN KEY(project_id) REFERENCES projects(id) ON DELETE CASCADE
+        );
         """)
 
         # Migration: ensure newly added columns exist in older SQLite databases
@@ -422,17 +442,35 @@ def init_db():
             """, (conv_id, p_id, first_title, first_time, first_time))
             conn.execute("UPDATE chat_messages SET conversation_id = ? WHERE project_id = ? AND conversation_id IS NULL", (conv_id, p_id))
 
-        # Decisions migration: rejected_alternatives, review_status, reviewed_by, reviewed_at
+        # Decisions migration: rejected_alternatives, review_status, reviewed_by, reviewed_at, freshness columns
         decision_cols = [r["name"] for r in conn.execute("PRAGMA table_info(decisions)").fetchall()]
         needed_decision_cols = {
             "rejected_alternatives": "TEXT",
             "review_status": "TEXT DEFAULT 'pending_review'",
             "reviewed_by": "TEXT",
-            "reviewed_at": "TEXT"
+            "reviewed_at": "TEXT",
+            "last_verified_at": "TEXT",
+            "last_verified_by": "TEXT",
+            "freshness_status": "TEXT DEFAULT 'fresh'",
+            "mismatch_reason": "TEXT",
+            "contradicting_commit_id": "TEXT"
         }
         for col, col_type in needed_decision_cols.items():
             if col not in decision_cols:
                 conn.execute(f"ALTER TABLE decisions ADD COLUMN {col} {col_type};")
+
+        # Landmines migration: freshness columns
+        landmine_cols = [r["name"] for r in conn.execute("PRAGMA table_info(landmines)").fetchall()]
+        needed_landmine_cols = {
+            "last_verified_at": "TEXT",
+            "last_verified_by": "TEXT",
+            "freshness_status": "TEXT DEFAULT 'fresh'",
+            "mismatch_reason": "TEXT",
+            "contradicting_commit_id": "TEXT"
+        }
+        for col, col_type in needed_landmine_cols.items():
+            if col not in landmine_cols:
+                conn.execute(f"ALTER TABLE landmines ADD COLUMN {col} {col_type};")
 
         # Open Loops migration: description, review_status, reviewed_by, reviewed_at
         loop_cols = [r["name"] for r in conn.execute("PRAGMA table_info(open_loops)").fetchall()]
@@ -482,6 +520,7 @@ def reset_database(clear_credentials: bool = False, clear_users: bool = False):
     """
     conn = get_db()
     cleared_tables = [
+        "knowledge_freshness_alerts",
         "knowledge_drift_alerts",
         "risk_snapshots",
         "landmines",

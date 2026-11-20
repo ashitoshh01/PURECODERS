@@ -233,12 +233,19 @@ def process_github_push_webhook(project_id: str, payload: Dict[str, Any]) -> Dic
 
     conn.close()
 
-    # Re-evaluate knowledge drift
+    # Re-evaluate knowledge drift and freshness drift
     drift_alerts = detect_knowledge_drift(project_id)
+    new_freshness_alerts = []
+    try:
+        from services.freshness_service import detect_freshness_drift
+        new_freshness_alerts = detect_freshness_drift(project_id)
+    except Exception:
+        pass
 
     return {
         "status": "processed",
         "commits_processed": len(commits),
         "artifacts_updated": updated_artifacts,
-        "new_drift_alerts_count": len(drift_alerts)
+        "new_drift_alerts_count": len(drift_alerts),
+        "new_freshness_alerts_count": len(new_freshness_alerts)
     }

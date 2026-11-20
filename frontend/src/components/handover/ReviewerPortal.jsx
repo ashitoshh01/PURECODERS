@@ -137,11 +137,10 @@ export default function ReviewerPortal({ projectId, onItemsUpdated }) {
             return (
               <div
                 key={`${item.itemType}-${item.id}`}
-                className={`p-3.5 rounded-xl border transition ${
-                  isApproved
+                className={`p-3.5 rounded-xl border transition ${isApproved
                     ? 'border-emerald-200 bg-emerald-50/30'
                     : 'border-slate-200 hover:border-slate-300 bg-white'
-                }`}
+                  }`}
               >
                 <div className="flex flex-wrap items-start justify-between gap-2 mb-1.5">
                   <div className="flex items-center gap-2">
@@ -149,13 +148,12 @@ export default function ReviewerPortal({ projectId, onItemsUpdated }) {
                       {item.artifact_id}
                     </span>
                     <span
-                      className={`text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1 border ${
-                        item.itemType === 'decision'
+                      className={`text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1 border ${item.itemType === 'decision'
                           ? 'bg-purple-50 text-purple-800 border-purple-200'
                           : item.itemType === 'landmine'
-                          ? 'bg-rose-50 text-rose-800 border-rose-200'
-                          : 'bg-amber-50 text-amber-800 border-amber-200'
-                      }`}
+                            ? 'bg-rose-50 text-rose-800 border-rose-200'
+                            : 'bg-amber-50 text-amber-800 border-amber-200'
+                        }`}
                     >
                       {item.itemType === 'decision' && <Sparkles className="w-3 h-3 text-purple-600" />}
                       {item.itemType === 'landmine' && <AlertTriangle className="w-3 h-3 text-rose-600" />}
@@ -164,79 +162,105 @@ export default function ReviewerPortal({ projectId, onItemsUpdated }) {
                     </span>
                   </div>
 
-                  <span
-                    className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
-                      isApproved
-                        ? 'bg-emerald-100 text-emerald-800 border-emerald-300'
-                        : 'bg-amber-100 text-amber-800 border-amber-300'
-                    }`}
-                  >
-                    {isApproved ? (
-                      <span className="inline-flex items-center gap-1">
-                        <Check className="w-3 h-3 text-emerald-700" />
-                        <span>Approved &amp; Locked</span>
-                      </span>
-                    ) : (
-                      <span className="inline-flex items-center gap-1">
-                        <Clock className="w-3 h-3 text-amber-700" />
-                        <span>Pending Review</span>
+                  <div className="flex items-center gap-1.5">
+                    {item.freshness_status === 'needs_reverification' && (
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full border bg-amber-50 text-amber-800 border-amber-300 flex items-center gap-1">
+                        <AlertTriangle className="w-3 h-3 text-amber-600" />
+                        <span>Code Drift Detected</span>
                       </span>
                     )}
-                  </span>
+                    <span
+                      className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${isApproved
+                          ? 'bg-emerald-100 text-emerald-800 border-emerald-300'
+                          : 'bg-amber-100 text-amber-800 border-amber-300'
+                        }`}
+                    >
+                      {isApproved ? (
+                        <span className="inline-flex items-center gap-1">
+                          <Check className="w-3 h-3 text-emerald-700" />
+                          <span>Approved &amp; Locked</span>
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1">
+                          <Clock className="w-3 h-3 text-amber-700" />
+                          <span>Pending Review</span>
+                        </span>
+                      )}
+                    </span>
+                  </div>
                 </div>
 
                 <h4 className="text-xs sm:text-sm font-bold text-slate-900 leading-snug">
-                  {item.displayTitle}
-                </h4>
+                    {item.displayTitle}
+                  </h4>
 
-                <p className="text-xs text-slate-600 mt-1 leading-relaxed">
-                  {item.displaySubtitle}
-                </p>
+                  <p className="text-xs text-slate-600 mt-1 leading-relaxed">
+                    {item.displaySubtitle}
+                  </p>
 
-                {/* Remediation or alternatives if present */}
-                {item.how_to_recover && (
-                  <div className="mt-2 p-2 rounded-lg bg-teal-50 border border-teal-200 text-[11px] text-teal-900">
-                    <span className="font-bold">Recovery Procedure: </span>
-                    <span>{item.how_to_recover}</span>
-                  </div>
-                )}
-
-                {item.rejected_alternatives && (
-                  <div className="mt-2 p-2 rounded-lg bg-purple-50 border border-purple-200 text-[11px] text-purple-900">
-                    <span className="font-bold">Rejected Alternatives: </span>
-                    <span>{item.rejected_alternatives}</span>
-                  </div>
-                )}
-
-                {/* Action Buttons */}
-                <div className="mt-3 pt-2 border-t border-slate-100 flex items-center justify-end gap-2">
-                  {!isApproved && (
-                    <button
-                      onClick={() => handleReject(item.itemType, item.id)}
-                      disabled={isUpdating}
-                      className="px-2.5 py-1 text-xs font-semibold text-rose-600 hover:bg-rose-50 rounded-lg transition cursor-pointer"
-                    >
-                      Reject
-                    </button>
+                  {/* Remediation or alternatives if present */}
+                  {item.how_to_recover && (
+                    <div className="mt-2 p-2 rounded-lg bg-teal-50 border border-teal-200 text-[11px] text-teal-900">
+                      <span className="font-bold">Recovery Procedure: </span>
+                      <span>{item.how_to_recover}</span>
+                    </div>
                   )}
-                  <button
-                    onClick={() => handleApprove(item.itemType, item.id)}
-                    disabled={isUpdating || isApproved}
-                    className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition flex items-center gap-1.5 cursor-pointer ${
-                      isApproved
-                        ? 'bg-emerald-50 text-emerald-700 opacity-60 cursor-default'
-                        : 'bg-teal-600 hover:bg-teal-700 text-white shadow-2xs'
-                    }`}
-                  >
-                    {isUpdating ? <Loader2 className="w-3 h-3 animate-spin" /> : <CheckCircle2 className="w-3.5 h-3.5" />}
-                    <span>{isApproved ? 'Approved' : 'Verify & Sign Off'}</span>
-                  </button>
+
+                  {item.rejected_alternatives && (
+                    <div className="mt-2 p-2 rounded-lg bg-purple-50 border border-purple-200 text-[11px] text-purple-900">
+                      <span className="font-bold">Rejected Alternatives: </span>
+                      <span>{item.rejected_alternatives}</span>
+                    </div>
+                  )}
+
+                  {/* Action Buttons */}
+                  <div className="mt-3 pt-2 border-t border-slate-100 flex items-center justify-between gap-2">
+                    <div className="text-[11px] text-slate-400">
+                      {item.last_verified_at && (
+                        <span>Last verified: {new Date(item.last_verified_at).toLocaleDateString()}</span>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {item.freshness_status === 'needs_reverification' && (
+                        <button
+                          onClick={async () => {
+                            await echoApi.verifyFreshnessRecord(item.itemType, item.id, 'Reviewer Lead');
+                            await loadReviewItems();
+                            if (onItemsUpdated) onItemsUpdated();
+                          }}
+                          className="px-2.5 py-1 text-xs font-semibold text-teal-700 bg-teal-50 hover:bg-teal-100 border border-teal-200 rounded-lg transition cursor-pointer"
+                        >
+                          Re-verify Freshness
+                        </button>
+                      )}
+                      {!isApproved && (
+                        <button
+                          onClick={() => handleReject(item.itemType, item.id)}
+                          disabled={isUpdating}
+                          className="px-2.5 py-1 text-xs font-semibold text-rose-600 hover:bg-rose-50 rounded-lg transition cursor-pointer"
+                        >
+                          Reject
+                        </button>
+                      )}
+                      <button
+                        onClick={() => handleApprove(item.itemType, item.id)}
+                        disabled={isUpdating || isApproved}
+                        className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition flex items-center gap-1.5 cursor-pointer ${
+                          isApproved
+                            ? 'bg-emerald-50 text-emerald-700 opacity-60 cursor-default'
+                            : 'bg-teal-600 hover:bg-teal-700 text-white shadow-2xs'
+                        }`}
+                      >
+                        {isUpdating ? <Loader2 className="w-3 h-3 animate-spin" /> : <CheckCircle2 className="w-3.5 h-3.5" />}
+                        <span>{isApproved ? 'Approved' : 'Verify & Sign Off'}</span>
+                      </button>
+                    </div>
+                  </div>
                 </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
-    </div>
-  );
-}
+              );
+            })}
+          </div>
+        )}
+      </div>
+    );
+  }

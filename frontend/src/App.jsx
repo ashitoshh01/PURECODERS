@@ -5,6 +5,7 @@ import ArchitectureClusterGraph from './components/risk/ArchitectureClusterGraph
 import ExitInterview from './components/interview/ExitInterview';
 import Handover from './components/handover/Handover';
 import AskEcho from './components/ask/AskEcho';
+import KnowledgeFreshnessMonitor from './components/freshness/KnowledgeFreshnessMonitor';
 import Login from './components/auth/Login';
 import Signup from './components/auth/Signup';
 import ForgotPassword from './components/auth/ForgotPassword';
@@ -17,6 +18,7 @@ function getTabFromPath(pathname) {
   if (clean === 'interview') return 'interview';
   if (clean === 'handover') return 'handover';
   if (clean === 'ask' || clean === 'chat' || clean === 'ai') return 'ask';
+  if (clean === 'freshness' || clean === 'drift' || clean === 'monitor') return 'freshness';
   if (clean === 'architecture' || clean === 'graph' || clean === 'cluster' || clean === 'cluster-viz') return 'architecture';
   if (clean === 'risk' || clean === 'dashboard' || clean === '') return 'risk';
   return 'risk';
@@ -434,6 +436,14 @@ export default function App() {
           activeProject={activeProject}
           successor={successor}
           refreshKey={handoverKey}
+          currentUser={currentUser}
+        />
+      </div>
+
+      <div style={{ display: activeTab === 'freshness' ? 'block' : 'none' }}>
+        <KnowledgeFreshnessMonitor
+          projectId={activeProject?.id}
+          activeProject={activeProject}
           currentUser={currentUser}
         />
       </div>

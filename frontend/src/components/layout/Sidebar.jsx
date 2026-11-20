@@ -139,6 +139,13 @@ export default function Sidebar({
       badge: 'AI',
       description: 'Grounded successor copilot',
     },
+    {
+      id: 'freshness',
+      label: 'Freshness Monitor',
+      icon: Sparkles,
+      badge: 'New',
+      description: 'Continuous knowledge drift',
+    },
   ];
 
   return (

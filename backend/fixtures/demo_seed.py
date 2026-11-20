@@ -10,6 +10,71 @@ from database import get_db
 DEMO_PROJECT_ID = "proj-demo"
 LIVE_PROJECT_ID = "proj-live"
 
+def _seed_decisions_and_landmines(conn, now: str):
+    """Seeds baseline architectural decisions and landmines with verified timestamps."""
+    decisions = [
+        (
+            DEMO_PROJECT_ID,
+            "MOD-RETRY",
+            "Set payment retry limit to 7 attempts with exponential backoff on payment gateway failures.",
+            "We chose retry limit of 7 because downstream banking webhooks experienced transient latency spikes during morning settlement runs, avoiding premature drops.",
+            "Instant failover without retries, retry limit of 3",
+            "approved",
+            "Reviewer Lead",
+            "2026-11-10T10:00:00Z",
+            "2026-11-10T10:00:00Z",
+            "Reviewer Lead",
+            "fresh",
+            None,
+            "2026-11-10T10:00:00Z"
+        ),
+        (
+            DEMO_PROJECT_ID,
+            "MOD-SYNC",
+            "Use Redis cluster for nightly sync state caching instead of in-memory Memcached.",
+            "Chosen because memory leaks in Memcached caused OOM crashes during midnight sync runs.",
+            "Memcached, local process dictionary",
+            "approved",
+            "Reviewer Lead",
+            "2026-11-12T11:00:00Z",
+            "2026-11-12T11:00:00Z",
+            "Reviewer Lead",
+            "fresh",
+            None,
+            "2026-11-12T11:00:00Z"
+        ),
+    ]
+    conn.executemany("""
+        INSERT OR REPLACE INTO decisions
+        (project_id, artifact_id, decision, rationale, rejected_alternatives, review_status, reviewed_by, reviewed_at, last_verified_at, last_verified_by, freshness_status, extracted_from_answer_id, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    """, decisions)
+
+    landmines = [
+        (
+            "MINE-SYNC-01",
+            DEMO_PROJECT_ID,
+            "MOD-SYNC",
+            "Nightly sync job fails silently if Redis connection pool is exhausted on weekends",
+            "Connection pool leaks during weekend maintenance window causing sync worker to freeze without triggering PagerDuty.",
+            "Queue backlog exceeds 10,000 without alerts.",
+            "Restart worker pod and run 'scripts/flush_stale_locks.py'.",
+            "approved",
+            "Reviewer Lead",
+            "2026-11-12T12:00:00Z",
+            "2026-11-12T12:00:00Z",
+            "Reviewer Lead",
+            "fresh",
+            None,
+            "2026-11-12T12:00:00Z"
+        )
+    ]
+    conn.executemany("""
+        INSERT OR REPLACE INTO landmines
+        (id, project_id, artifact_id, title, description, symptom, how_to_recover, review_status, reviewed_by, reviewed_at, last_verified_at, last_verified_by, freshness_status, extracted_from_answer_id, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    """, landmines)
+
 def seed_demo_data(reset: bool = False):
     conn = get_db()
     try:
@@ -25,6 +90,8 @@ def seed_demo_data(reset: bool = False):
             with conn:
                 conn.execute("DELETE FROM interview_answers WHERE question_id IN (SELECT id FROM interview_questions WHERE project_id = ?)", (DEMO_PROJECT_ID,))
                 conn.execute("DELETE FROM decisions WHERE project_id = ?", (DEMO_PROJECT_ID,))
+                conn.execute("DELETE FROM landmines WHERE project_id = ?", (DEMO_PROJECT_ID,))
+                conn.execute("DELETE FROM knowledge_freshness_alerts WHERE project_id = ?", (DEMO_PROJECT_ID,))
                 conn.execute("DELETE FROM chat_messages WHERE project_id = ?", (DEMO_PROJECT_ID,))
                 conn.execute("UPDATE handover_packages SET status = 'pending_manager_approval', approved_at = NULL, approved_by = NULL WHERE project_id = ?", (DEMO_PROJECT_ID,))
                 conn.execute("UPDATE onboarding_tasks SET is_completed = 0 WHERE package_id = 'pkg-demo'")
@@ -37,6 +104,14 @@ def seed_demo_data(reset: bool = False):
                     ("c-demo-02", DEMO_PROJECT_ID, "repo-core", "Meera", "meera@example.com", "2026-11-16T14:30:00Z", "refactor(auth): simplify session token caching", 2),
                     ("c-demo-03", DEMO_PROJECT_ID, "repo-core", "Rohan", "rohan@example.com", "2026-11-15T09:15:00Z", "chore(ci): parallelize integration tests", 1),
                 ])
+                _seed_decisions_and_landmines(conn, now)
+
+            # Trigger freshness drift check on reset
+            try:
+                from services.freshness_service import detect_freshness_drift
+                detect_freshness_drift(DEMO_PROJECT_ID)
+            except Exception:
+                pass
             return
 
         with conn:
@@ -179,5 +254,15 @@ def seed_demo_data(reset: bool = False):
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?)
             """, commits)
 
+            # 13. Seed Baseline Decisions and Landmines with Verification Timestamps
+            _seed_decisions_and_landmines(conn, now)
+
     finally:
         conn.close()
+
+    # 14. Initial Drift & Freshness Detection Run
+    try:
+        from services.freshness_service import detect_freshness_drift
+        detect_freshness_drift(DEMO_PROJECT_ID)
+    except Exception:
+        pass

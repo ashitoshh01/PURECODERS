@@ -1,5 +1,5 @@
 import React from 'react';
-import { Sparkles, CheckCircle2, Check, Clock } from 'lucide-react';
+import { Sparkles, CheckCircle2, Check, Clock, AlertTriangle } from 'lucide-react';
 import EmptyState from '../common/EmptyState';
 
 export default function DecisionLog({ decisions = [], leaverName = 'Departing Lead' }) {
@@ -25,13 +25,23 @@ export default function DecisionLog({ decisions = [], leaverName = 'Departing Le
               {d.artifact_id}
             </span>
             <div className="flex items-center gap-1.5">
+              {d.freshness_status === 'needs_reverification' ? (
+                <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-amber-50 text-amber-800 border border-amber-300 flex items-center gap-1">
+                  <AlertTriangle className="w-3 h-3 text-amber-600" />
+                  <span>Drift Detected</span>
+                </span>
+              ) : d.last_verified_at ? (
+                <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200 flex items-center gap-1">
+                  <Check className="w-3 h-3 text-emerald-600" />
+                  <span>Fresh</span>
+                </span>
+              ) : null}
               {d.review_status && (
                 <span
-                  className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${
-                    d.review_status === 'approved'
+                  className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${d.review_status === 'approved'
                       ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
                       : 'bg-amber-50 text-amber-800 border-amber-200'
-                  }`}
+                    }`}
                 >
                   {d.review_status === 'approved' ? (
                     <span className="inline-flex items-center gap-1">
@@ -60,6 +70,15 @@ export default function DecisionLog({ decisions = [], leaverName = 'Departing Le
           <div className="mt-2.5 p-3 rounded-xl bg-slate-50 border-l-4 border-[#18C6B0] text-xs text-slate-700 leading-relaxed italic">
             &ldquo;{d.rationale}&rdquo;
           </div>
+
+          {d.mismatch_reason && (
+            <div className="mt-2 p-2.5 bg-amber-50 rounded-lg text-xs text-amber-900 border border-amber-200 flex items-start gap-1.5">
+              <AlertTriangle className="w-3.5 h-3.5 text-amber-600 shrink-0 mt-0.5" />
+              <div>
+                <strong>Freshness Alert: </strong>{d.mismatch_reason}
+              </div>
+            </div>
+          )}
 
           {d.rejected_alternatives && (
             <div className="mt-2 p-2 bg-slate-100 rounded-lg text-[11px] text-slate-600">

@@ -38,6 +38,7 @@ from services import slack_service
 from services import jira_service
 from services import voice_service
 from services import monitor_service
+from services import freshness_service
 
 app = FastAPI(title="Echo — Knowledge-Risk Engine", version="0.3.0")
 
@@ -202,6 +203,15 @@ class ReviewItemUpdateIn(BaseModel):
 
 class MonitoringRescanIn(BaseModel):
     project_id: Optional[str] = None
+
+class FreshnessScanIn(BaseModel):
+    project_id: Optional[str] = None
+
+class FreshnessVerifyIn(BaseModel):
+    verifier_name: Optional[str] = "Reviewer Lead"
+
+class FreshnessDismissIn(BaseModel):
+    dismissed_by: Optional[str] = "Reviewer Lead"
 
 # ----------------------------------------------------------------------------
 # AUTHENTICATION DEPENDENCIES
@@ -1550,11 +1560,13 @@ async def github_push_webhook(project_id: str, request: Request):
 def monitoring_rescan(payload: MonitoringRescanIn):
     p_id = payload.project_id or (get_active_project() or {}).get("id") or DEMO_PROJECT_ID
     alerts = monitor_service.detect_knowledge_drift(p_id)
+    freshness_alerts = freshness_service.detect_freshness_drift(p_id)
     return {
         "status": "rescan_complete",
         "project_id": p_id,
         "new_drift_alerts": alerts,
-        "drift_alerts_count": len(alerts)
+        "drift_alerts_count": len(alerts),
+        "new_freshness_alerts_count": len(freshness_alerts)
     }
 
 @app.get("/api/monitoring/drift-alerts")
@@ -1569,6 +1581,51 @@ def get_monitoring_drift_alerts(project_id: Optional[str] = None, include_resolv
 def resolve_monitoring_drift_alert(alert_id: str):
     monitor_service.resolve_drift_alert(alert_id)
     return {"status": "resolved", "alert_id": alert_id}
+
+# ----------------------------------------------------------------------------
+# KNOWLEDGE FRESHNESS MONITOR APIS
+# ----------------------------------------------------------------------------
+@app.get("/api/freshness/overview")
+def get_freshness_overview_endpoint(project_id: Optional[str] = None):
+    p_id = project_id or (get_active_project() or {}).get("id") or DEMO_PROJECT_ID
+    return freshness_service.get_freshness_overview(p_id)
+
+@app.get("/api/freshness/alerts")
+def get_freshness_alerts_endpoint(project_id: Optional[str] = None, include_resolved: bool = False):
+    p_id = project_id or (get_active_project() or {}).get("id") or DEMO_PROJECT_ID
+    alerts = freshness_service.get_freshness_alerts(p_id, include_resolved=include_resolved)
+    return {"alerts": alerts, "count": len(alerts)}
+
+@app.get("/api/freshness/records")
+def get_freshness_records_endpoint(project_id: Optional[str] = None):
+    p_id = project_id or (get_active_project() or {}).get("id") or DEMO_PROJECT_ID
+    records = freshness_service.get_freshness_records(p_id)
+    return {"records": records, "count": len(records)}
+
+@app.post("/api/freshness/scan")
+def trigger_freshness_scan_endpoint(payload: Optional[FreshnessScanIn] = None):
+    p_id = (payload.project_id if payload else None) or (get_active_project() or {}).get("id") or DEMO_PROJECT_ID
+    new_alerts = freshness_service.detect_freshness_drift(p_id)
+    overview = freshness_service.get_freshness_overview(p_id)
+    return {
+        "status": "scan_complete",
+        "project_id": p_id,
+        "new_alerts": new_alerts,
+        "new_alerts_count": len(new_alerts),
+        "overview": overview
+    }
+
+@app.post("/api/freshness/verify/{record_type}/{record_id}")
+def verify_freshness_record_endpoint(record_type: str, record_id: str, payload: Optional[FreshnessVerifyIn] = None):
+    verifier = (payload.verifier_name if payload else None) or "Lead Reviewer"
+    result = freshness_service.track_verification(record_type, record_id, verifier)
+    return result
+
+@app.post("/api/freshness/dismiss/{alert_id}")
+def dismiss_freshness_alert_endpoint(alert_id: str, payload: Optional[FreshnessDismissIn] = None):
+    dismissed_by = (payload.dismissed_by if payload else None) or "Lead Reviewer"
+    freshness_service.dismiss_freshness_alert(alert_id, dismissed_by)
+    return {"status": "dismissed", "alert_id": alert_id}
 
 # ----------------------------------------------------------------------------
 # CONNECTORS & RESET

@@ -210,6 +210,28 @@ export const echoApi = {
     api(`/api/monitoring/drift-alerts?include_resolved=${includeResolved}${projectId ? `&project_id=${projectId}` : ''}`),
   resolveDriftAlert: (alertId) => api(`/api/monitoring/drift-alerts/${alertId}/resolve`, { method: 'POST' }),
 
+  // Knowledge Freshness Monitor
+  getFreshnessOverview: (projectId = null) =>
+    api(`/api/freshness/overview${projectId ? `?project_id=${projectId}` : ''}`),
+  getFreshnessAlerts: (projectId = null, includeResolved = false) =>
+    api(`/api/freshness/alerts?include_resolved=${includeResolved}${projectId ? `&project_id=${projectId}` : ''}`),
+  getFreshnessRecords: (projectId = null) =>
+    api(`/api/freshness/records${projectId ? `?project_id=${projectId}` : ''}`),
+  rescanFreshness: (projectId = null) => api('/api/freshness/scan', {
+    method: 'POST',
+    body: JSON.stringify({ project_id: projectId }),
+  }),
+  verifyFreshnessRecord: (recordType, recordId, verifierName = 'Reviewer Lead') =>
+    api(`/api/freshness/verify/${recordType}/${recordId}`, {
+      method: 'POST',
+      body: JSON.stringify({ verifier_name: verifierName }),
+    }),
+  dismissFreshnessAlert: (alertId, dismissedBy = 'Reviewer Lead') =>
+    api(`/api/freshness/dismiss/${alertId}`, {
+      method: 'POST',
+      body: JSON.stringify({ dismissed_by: dismissedBy }),
+    }),
+
   // Interview
   getInterviewQuestions: (limit = 6, projectId = null) =>
     api(`/api/interview/questions?limit=${limit}${projectId ? `&project_id=${projectId}` : ''}`),
